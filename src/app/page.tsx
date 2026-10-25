@@ -1,0 +1,2388 @@
+"use client";
+
+import React, { useState, useMemo } from "react";
+import Image from "next/image";
+
+interface JobItem {
+  id: number;
+  icon: string;
+  title: string;
+  company: string;
+  location: string;
+  country: string;
+  category: string;
+  pay: number;
+  payText: string;
+  type: string;
+  age: string;
+  desc: string;
+}
+
+const INITIAL_JOBS: JobItem[] = [
+  {
+    id: 1,
+    icon: "❄️",
+    title: "HVAC Installer / Technician",
+    company: "Established Contractor",
+    location: "Lakewood, NJ",
+    country: "United States",
+    category: "HVAC",
+    pay: 28,
+    payText: "$28–$40/hr",
+    type: "Full-time",
+    age: "1h ago",
+    desc: "Residential and light commercial HVAC work. Mini-split experience is a plus."
+  },
+  {
+    id: 2,
+    icon: "🧾",
+    title: "Bookkeeper / Accounts Payable",
+    company: "Growing Business Office",
+    location: "Monsey, NY",
+    country: "United States",
+    category: "Accounting",
+    pay: 25,
+    payText: "$25–$32/hr",
+    type: "Full-time",
+    age: "2h ago",
+    desc: "Handle invoices, vendor payments, QuickBooks entries and reconciliations."
+  },
+  {
+    id: 3,
+    icon: "📈",
+    title: "Sales Representative",
+    company: "Home Services Company",
+    location: "Brooklyn, NY",
+    country: "United States",
+    category: "Sales",
+    pay: 30,
+    payText: "$30/hr + commission",
+    type: "Full-time",
+    age: "3h ago",
+    desc: "Speak with incoming leads, follow up with customers and close sales."
+  },
+  {
+    id: 4,
+    icon: "🏢",
+    title: "Property Management Coordinator",
+    company: "Property Management Office",
+    location: "London",
+    country: "United Kingdom",
+    category: "Real Estate",
+    pay: 26,
+    payText: "£20–£26/hr",
+    type: "Full-time",
+    age: "4h ago",
+    desc: "Coordinate maintenance requests, tenants, vendors and scheduling."
+  },
+  {
+    id: 5,
+    icon: "🎧",
+    title: "Customer Service / Dispatcher",
+    company: "Service Company",
+    location: "Manchester",
+    country: "United Kingdom",
+    category: "Customer Service",
+    pay: 22,
+    payText: "£15–£20/hr",
+    type: "Full-time",
+    age: "5h ago",
+    desc: "Answer calls, schedule jobs and keep customers updated."
+  },
+  {
+    id: 6,
+    icon: "📦",
+    title: "Warehouse Supervisor",
+    company: "Distribution Company",
+    location: "Brooklyn, NY",
+    country: "United States",
+    category: "Warehouse",
+    pay: 30,
+    payText: "$30–$38/hr",
+    type: "Full-time",
+    age: "6h ago",
+    desc: "Run daily warehouse workflow, inventory and shipping."
+  },
+  {
+    id: 7,
+    icon: "🎨",
+    title: "Graphic Designer",
+    company: "Consumer Brand",
+    location: "Jerusalem",
+    country: "Israel",
+    category: "Design",
+    pay: 24,
+    payText: "₪80–₪110/hr",
+    type: "Full-time",
+    age: "7h ago",
+    desc: "Create ads, social graphics and marketing materials."
+  },
+  {
+    id: 8,
+    icon: "🚐",
+    title: "Route Driver",
+    company: "Local Distribution Business",
+    location: "Boro Park, Brooklyn",
+    country: "United States",
+    category: "Driving",
+    pay: 25,
+    payText: "$25–$30/hr",
+    type: "Full-time",
+    age: "8h ago",
+    desc: "Local scheduled route driving with regular stops."
+  },
+  {
+    id: 9,
+    icon: "💻",
+    title: "Junior IT Support",
+    company: "Business Office",
+    location: "Beit Shemesh",
+    country: "Israel",
+    category: "IT",
+    pay: 25,
+    payText: "₪75–₪100/hr",
+    type: "Full-time",
+    age: "10h ago",
+    desc: "Help staff with computers, printers, accounts and basic networking."
+  },
+  {
+    id: 10,
+    icon: "📚",
+    title: "School Office Administrator",
+    company: "Community School",
+    location: "Toronto",
+    country: "Canada",
+    category: "Education",
+    pay: 23,
+    payText: "C$23–C$29/hr",
+    type: "Full-time",
+    age: "1d ago",
+    desc: "Handle schedules, parent calls, records and daily office tasks."
+  },
+  {
+    id: 11,
+    icon: "🔧",
+    title: "Plumber Helper",
+    company: "Plumbing Company",
+    location: "Antwerp",
+    country: "Belgium",
+    category: "Plumbing",
+    pay: 22,
+    payText: "€18–€24/hr",
+    type: "Full-time",
+    age: "1d ago",
+    desc: "Assist technicians on service calls and installations. Training available."
+  },
+  {
+    id: 12,
+    icon: "🍽️",
+    title: "Kitchen Manager",
+    company: "Kosher Food Business",
+    location: "Lakewood, NJ",
+    country: "United States",
+    category: "Food Service",
+    pay: 27,
+    payText: "$27–$35/hr",
+    type: "Full-time",
+    age: "1d ago",
+    desc: "Manage kitchen workflow, staff, ordering and production."
+  }
+];
+
+const JOB_CATEGORIES = [
+  "Accounting", "Administration", "Sales", "Customer Service", "HVAC",
+  "Plumbing", "Electrical", "Construction", "Driving", "Warehouse",
+  "IT", "Design", "Marketing", "Real Estate", "Healthcare",
+  "Education", "Food Service", "Retail", "Security", "Management", "Other"
+];
+
+const CATEGORY_RULES: [RegExp, string][] = [
+  [/hvac|air condition|mini.?split|heating|ac tech/i, "HVAC"],
+  [/bookkeep|account|quickbooks|payroll|controller|finance/i, "Accounting & Finance"],
+  [/driver|delivery|route|chauffeur|van|cdl/i, "Driving & Delivery"],
+  [/warehouse|shipping|inventory|picker|packer/i, "Warehouse & Logistics"],
+  [/sales|closer|business development|account executive/i, "Sales"],
+  [/customer service|dispatcher|call center|reception/i, "Customer Service"],
+  [/office|secretary|administrative|admin assistant/i, "Administration & Office"],
+  [/property|real estate|leasing|tenant/i, "Real Estate & Property Management"],
+  [/plumb/i, "Plumbing"],
+  [/electric/i, "Electrical"],
+  [/construction|carpenter|handyman|installer/i, "Construction & Trades"],
+  [/it support|computer|network|software|developer|tech support/i, "IT & Technology"],
+  [/graphic|designer|creative|video editor/i, "Design & Creative"],
+  [/marketing|social media|ads|seo/i, "Marketing"],
+  [/teacher|rebbe|school|tutor|education/i, "Education"],
+  [/kitchen|cook|chef|food|pizza|bakery/i, "Food Service"],
+  [/security|guard/i, "Security"],
+  [/clean|maintenance|janitor/i, "Cleaning & Maintenance"]
+];
+
+const INTEREST_OPTIONS = [
+  { label: "🧾 Accounting", value: "Accounting" },
+  { label: "🗂️ Admin", value: "Administration" },
+  { label: "📈 Sales", value: "Sales" },
+  { label: "🎧 Customer Service", value: "Customer Service" },
+  { label: "❄️ HVAC", value: "HVAC" },
+  { label: "🔧 Plumbing", value: "Plumbing" },
+  { label: "⚡ Electrical", value: "Electrical" },
+  { label: "🏗️ Construction", value: "Construction" },
+  { label: "🚐 Driving", value: "Driving" },
+  { label: "📦 Warehouse", value: "Warehouse" },
+  { label: "💻 IT / Tech", value: "IT" },
+  { label: "🎨 Design", value: "Design" },
+  { label: "📣 Marketing", value: "Marketing" },
+  { label: "🏢 Real Estate", value: "Real Estate" },
+  { label: "🩺 Healthcare", value: "Healthcare" },
+  { label: "📚 Education", value: "Education" },
+  { label: "🍽️ Food Service", value: "Food Service" },
+  { label: "🛍️ Retail", value: "Retail" },
+  { label: "🛡️ Security", value: "Security" },
+  { label: "👔 Management", value: "Management" }
+];
+
+export default function HomePage() {
+  // Global & Gate Modals
+  const [entryGateOpen, setEntryGateOpen] = useState(true);
+  const [profileGateOpen, setProfileGateOpen] = useState(false);
+  const [employerGateOpen, setEmployerGateOpen] = useState(false);
+  const [showBackToStart, setShowBackToStart] = useState(false);
+
+  // Profile Gate State
+  const [profileStep, setProfileStep] = useState(1);
+  const [profileGender, setProfileGender] = useState("");
+  const [profileAge, setProfileAge] = useState("");
+  const [profileStage, setProfileStage] = useState("");
+  const [profileCountry, setProfileCountry] = useState("");
+  const [profileLocation, setProfileLocation] = useState("");
+  const [profileInterests, setProfileInterests] = useState<string[]>([]);
+  const [profileSchedule, setProfileSchedule] = useState("");
+  const [profileMinPay, setProfileMinPay] = useState("0");
+  const [interestSearchQuery, setInterestSearchQuery] = useState("");
+  const [profileSummary, setProfileSummary] = useState<{ show: boolean; text: string }>({
+    show: false,
+    text: ""
+  });
+
+  // Employer Posting Gate State (5 Steps)
+  const [employerStep, setEmployerStep] = useState(1);
+  const [empCompany, setEmpCompany] = useState("");
+  const [empOpenings, setEmpOpenings] = useState("1 person");
+  const [empTitle, setEmpTitle] = useState("");
+  const [empCategory, setEmpCategory] = useState("");
+  const [empSeniority, setEmpSeniority] = useState("Entry level / willing to train");
+  const [empDesc, setEmpDesc] = useState("");
+
+  const [empCountry, setEmpCountry] = useState("");
+  const [empLocation, setEmpLocation] = useState("");
+  const [empArrangement, setEmpArrangement] = useState("On-site");
+  const [empSchedule, setEmpSchedule] = useState("Full-time");
+  const [empHours, setEmpHours] = useState("");
+  const [empStart, setEmpStart] = useState("As soon as possible");
+  const [empStartDate, setEmpStartDate] = useState("");
+  const [empDays, setEmpDays] = useState<string[]>([]);
+  const [empPayType, setEmpPayType] = useState("Hourly");
+  const [empCurrency, setEmpCurrency] = useState("USD $");
+  const [empPayMin, setEmpPayMin] = useState("");
+  const [empPayMax, setEmpPayMax] = useState("");
+  const [empBenefits, setEmpBenefits] = useState<string[]>([]);
+
+  const [empExperience, setEmpExperience] = useState("No experience needed");
+  const [empTrain, setEmpTrain] = useState("Yes, full training");
+  const [empLicense, setEmpLicense] = useState("Not needed");
+  const [empVehicle, setEmpVehicle] = useState("Not needed");
+  const [empLanguages, setEmpLanguages] = useState("");
+  const [empCertification, setEmpCertification] = useState("");
+  const [empSkills, setEmpSkills] = useState("");
+  const [empPhysical, setEmpPhysical] = useState("");
+  const [empResume, setEmpResume] = useState("Not required");
+  const [empApplyStyle, setEmpApplyStyle] = useState("Quick apply — name + basic profile");
+  const [screeningQuestions, setScreeningQuestions] = useState<string[]>([]);
+
+  const [empMessaging, setEmpMessaging] = useState("App messages");
+  const [empContactName, setEmpContactName] = useState("");
+  const [empPhone, setEmpPhone] = useState("");
+  const [empEmail, setEmpEmail] = useState("");
+  const [empCalls, setEmpCalls] = useState("No — messages only");
+
+  const [employerSubmitted, setEmployerSubmitted] = useState(false);
+  const [employerApproved, setEmployerApproved] = useState(false);
+
+  // Search & Filter State
+  const [searchInput, setSearchInput] = useState("");
+  const [locationSearch, setLocationSearch] = useState("");
+  const [quickCat, setQuickCat] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [payFilter, setPayFilter] = useState("0");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [showCategoryBrowser, setShowCategoryBrowser] = useState(false);
+
+  // Job Modal State
+  const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
+
+  // Toast Notification State
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+
+
+  // Jobs Feed State
+  const [jobsList, setJobsList] = useState<JobItem[]>(INITIAL_JOBS);
+
+  // Show Toast Helper
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setToastVisible(true);
+    setTimeout(() => {
+      setToastVisible(false);
+    }, 2300);
+  };
+
+  // Helper for Currency
+  const getCurrencySymbol = (curr: string) => {
+    if (curr.includes("$")) return curr.startsWith("CAD") ? "C$" : "$";
+    if (curr.includes("£")) return "£";
+    if (curr.includes("₪")) return "₪";
+    if (curr.includes("€")) return "€";
+    return "";
+  };
+
+  const getPayText = () => {
+    const sym = getCurrencySymbol(empCurrency);
+    const suffix =
+      empPayType === "Hourly" ? "/hr" :
+      empPayType === "Yearly salary" ? "/yr" :
+      empPayType === "Weekly" ? "/week" :
+      empPayType === "Daily" ? "/day" :
+      empPayType === "Per job / project" ? "/job" : "";
+    return `${sym}${empPayMin}${empPayMax ? `–${sym}${empPayMax}` : ""}${suffix}${
+      empPayType === "Commission" ? " commission" : ""
+    }${empPayType === "Base + commission" ? " + commission" : ""}`;
+  };
+
+  // Role Gate Actions
+  const handleChooseJobSeeker = () => {
+    setEntryGateOpen(false);
+    setProfileGateOpen(true);
+    setProfileStep(1);
+  };
+
+  const handleChooseHiring = () => {
+    setEntryGateOpen(false);
+    setProfileGateOpen(false);
+    setEmployerGateOpen(true);
+    setEmployerStep(1);
+    setEmployerSubmitted(false);
+    setEmployerApproved(false);
+  };
+
+  const handleEntrySignIn = () => {
+    setEntryGateOpen(false);
+    setShowBackToStart(true);
+    showToast("Sign-in flow would open here.");
+  };
+
+  const handleBackToStart = () => {
+    setProfileGateOpen(false);
+    setEmployerGateOpen(false);
+    setEntryGateOpen(true);
+    setShowBackToStart(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Profile Step Actions
+  const handleProfileNext1 = () => {
+    const ageNum = Number(profileAge);
+    if (!profileGender || !profileAge) {
+      showToast("Please choose a gender option and enter your age.");
+      return;
+    }
+    if (isNaN(ageNum) || ageNum < 14 || ageNum > 99) {
+      showToast("Please enter a valid age.");
+      return;
+    }
+    setProfileStep(2);
+  };
+
+  const handleFinishProfile = () => {
+    setProfileGateOpen(false);
+    setShowBackToStart(true);
+
+    if (profileLocation) setLocationSearch(profileLocation);
+    if (profileCountry) setCountryFilter(profileCountry);
+    if (profileMinPay && profileMinPay !== "0") setPayFilter(profileMinPay);
+    if (profileSchedule) setTypeFilter(profileSchedule);
+    if (profileInterests.length === 1) setCategoryFilter(profileInterests[0]);
+
+    const summaryParts = [
+      profileStage || "Job seeker",
+      profileAge ? `age ${profileAge}` : "",
+      profileLocation || profileCountry || "any location",
+      profileInterests.length ? profileInterests.join(", ") : "all job types",
+      profileMinPay && profileMinPay !== "0" ? `${profileMinPay}+ / hr` : "any pay"
+    ].filter(Boolean);
+
+    setProfileSummary({
+      show: true,
+      text: summaryParts.join(" · ")
+    });
+
+    setTimeout(() => {
+      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  const toggleInterest = (val: string) => {
+    setProfileInterests(prev =>
+      prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+    );
+  };
+
+  // Employer Step Actions
+  const handleSuggestCategory = () => {
+    if (!empTitle.trim()) {
+      showToast("Type a job title first.");
+      return;
+    }
+    const hit = CATEGORY_RULES.find(([rx]) => rx.test(empTitle));
+    const chosenCat = hit ? hit[1] : "Other";
+    setEmpCategory(chosenCat);
+    showToast(hit ? `Suggested category: ${chosenCat}` : "We could not confidently classify it, so “Other” was selected.");
+  };
+
+  const handleEmployerNext1 = () => {
+    if (!empTitle.trim() || !empCompany.trim() || !empCategory || !empDesc.trim()) {
+      showToast("Please add the business name, job title, category, and responsibilities.");
+      return;
+    }
+    setEmployerStep(2);
+  };
+
+  const handleEmployerNext2 = () => {
+    if (!empCountry || !empLocation.trim() || !empPayMin.trim()) {
+      showToast("Please add the country, location, and minimum pay.");
+      return;
+    }
+    setEmployerStep(3);
+  };
+
+  const handleEmployerNext3 = () => {
+    setEmployerStep(4);
+  };
+
+  const handleEmployerNext4 = () => {
+    if (!empContactName.trim() || !empPhone.trim()) {
+      showToast("Please add a contact name and phone number for verification.");
+      return;
+    }
+    setEmployerStep(5);
+  };
+
+  const handleAddScreeningQuestion = () => {
+    const q = window.prompt("Add a screening question for applicants:");
+    if (q && q.trim()) {
+      setScreeningQuestions(prev => [...prev, q.trim()]);
+    }
+  };
+
+  const handleRemoveScreeningQuestion = (index: number) => {
+    setScreeningQuestions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitEmployerJob = () => {
+    setEmployerSubmitted(true);
+    showToast("Job submitted to your team for review. No charge yet.");
+  };
+
+  const handleSimulateApproval = () => {
+    setEmployerSubmitted(false);
+    setEmployerApproved(true);
+    showToast("Prototype approval complete — publishing options are now available.");
+  };
+
+  const handleChoosePublishPlan = (planName: string) => {
+    showToast(`${planName} selected — payment would open now.`);
+    // Add to active jobs list so employer sees their published job!
+    const newJob: JobItem = {
+      id: Date.now(),
+      icon: "✨",
+      title: empTitle,
+      company: empCompany,
+      location: `${empLocation}, ${empCountry}`,
+      country: empCountry,
+      category: empCategory,
+      pay: Number(empPayMin) || 25,
+      payText: getPayText(),
+      type: empSchedule,
+      age: "Just now",
+      desc: empDesc
+    };
+    setJobsList(prev => [newJob, ...prev]);
+
+    setTimeout(() => {
+      setEmployerGateOpen(false);
+      setShowBackToStart(true);
+      document.querySelector("#employer-process")?.scrollIntoView({ behavior: "smooth" });
+    }, 900);
+  };
+
+  // Filter Jobs
+  const filteredJobs = useMemo(() => {
+    const q = searchInput.toLowerCase().trim();
+    const loc = locationSearch.toLowerCase().trim();
+    const min = Number(payFilter);
+
+    return jobsList.filter(j => {
+      const matchesQ =
+        !q ||
+        (j.title + " " + j.company + " " + j.category + " " + j.desc).toLowerCase().includes(q);
+      const matchesLoc =
+        !loc || (j.location + " " + j.country).toLowerCase().includes(loc);
+      const matchesCountry = !countryFilter || j.country === countryFilter;
+      const matchesPay = j.pay >= min;
+      const matchesType = !typeFilter || j.type === typeFilter;
+      const activeCat = quickCat || categoryFilter;
+      const matchesCat = !activeCat || j.category.toLowerCase().includes(activeCat.toLowerCase());
+
+      return matchesQ && matchesLoc && matchesCountry && matchesPay && matchesType && matchesCat;
+    });
+  }, [jobsList, searchInput, locationSearch, countryFilter, payFilter, typeFilter, quickCat, categoryFilter]);
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setLocationSearch("");
+    setQuickCat("");
+    setCategoryFilter("");
+    setCountryFilter("");
+    setPayFilter("0");
+    setTypeFilter("");
+  };
+
+
+  return (
+    <>
+      {/* 1. ENTRY GATE (First-step role chooser) */}
+      <div
+        className={`entry-gate ${!entryGateOpen ? "hidden" : ""}`}
+        id="entryGate"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="entryTitle"
+      >
+        <div className="entry-wrap">
+          <div className="entry-brand" style={{ display: "inline-flex", alignItems: "center", marginBottom: "28px" }}>
+            <Image
+              src="/logo.png"
+              alt="YidMatch"
+              width={240}
+              height={80}
+              style={{ height: "64px", width: "auto", objectFit: "contain", borderRadius: "14px", boxShadow: "0 6px 20px rgba(7, 28, 53, 0.16)" }}
+              priority
+            />
+          </div>
+          <div>
+            <span className="entry-kicker">
+              <span className="dot"></span>Welcome
+            </span>
+          </div>
+          <h1 className="entry-title" id="entryTitle">
+            What are you here for today?
+          </h1>
+          <p className="entry-sub">
+            Choose one option and we&apos;ll take you straight to the right part of YidMatch.
+          </p>
+          <div className="role-grid">
+            <button
+              type="button"
+              className="role-card primary"
+              id="chooseJobSeeker"
+              onClick={handleChooseJobSeeker}
+            >
+              <span className="role-icon">🔎</span>
+              <span className="role-copy">
+                <span className="role-label">Job Seeking</span>
+                <h2>I&apos;m Looking for a Job</h2>
+                <p>Browse approved jobs, save your preferences, apply, and message employers.</p>
+              </span>
+              <span className="role-arrow">→</span>
+            </button>
+            <button
+              type="button"
+              className="role-card"
+              id="chooseHiring"
+              onClick={handleChooseHiring}
+            >
+              <span className="role-icon">💼</span>
+              <span className="role-copy">
+                <span className="role-label">Hiring</span>
+                <h2>I&apos;m Hiring</h2>
+                <p>Post a job, reach the right people, review applicants, and use app or SMS messaging.</p>
+              </span>
+              <span className="role-arrow">→</span>
+            </button>
+          </div>
+          <div className="entry-foot">
+            Already have an account?{" "}
+            <button type="button" id="entrySignIn" onClick={handleEntrySignIn}>
+              Sign in
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. PROFILE GATE (Job seeker 2-step onboarding) */}
+      <div
+        className={`profile-gate ${profileGateOpen ? "show" : ""}`}
+        id="profileGate"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profileTitle"
+      >
+        <div className="profile-wrap">
+          <div className="profile-top">
+            <button
+              type="button"
+              className="btn btn-light"
+              id="profileBack"
+              onClick={() => {
+                setProfileGateOpen(false);
+                setEntryGateOpen(true);
+              }}
+            >
+              ← Back
+            </button>
+            <div className="profile-progress">
+              <span className={`progress-dot ${profileStep >= 1 ? "on" : ""}`} id="pd1"></span>
+              <span className={`progress-dot ${profileStep >= 2 ? "on" : ""}`} id="pd2"></span>
+            </div>
+          </div>
+          <div className="profile-card">
+            {profileStep === 1 && (
+              <div className="profile-step on" id="profileStep1">
+                <span className="privacy-chip">
+                  🔒 Private profile details · used to personalize your experience
+                </span>
+                <h2 id="profileTitle">Tell us a little about yourself</h2>
+                <p className="profile-lead">
+                  This helps us show jobs that actually fit. Age can also help avoid showing jobs with legal age requirements that don&apos;t apply to you.
+                </p>
+                <div className="form-grid">
+                  <div className="field">
+                    <label>
+                      Gender <span className="required-star">*</span>
+                    </label>
+                    <select
+                      id="profileGender"
+                      value={profileGender}
+                      onChange={e => setProfileGender(e.target.value)}
+                    >
+                      <option value="">Choose one</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>
+                      Age <span className="required-star">*</span>
+                    </label>
+                    <input
+                      id="profileAge"
+                      type="number"
+                      min="14"
+                      max="99"
+                      placeholder="e.g. 22"
+                      value={profileAge}
+                      onChange={e => setProfileAge(e.target.value)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Which best describes you?</label>
+                    <select
+                      id="profileStage"
+                      value={profileStage}
+                      onChange={e => setProfileStage(e.target.value)}
+                    >
+                      <option value="">Choose one</option>
+                      <option value="Bochur">Bochur</option>
+                      <option value="Yungerman">Yungerman</option>
+                      <option value="Man">Man</option>
+                      <option value="Girl">Girl</option>
+                      <option value="Woman">Woman</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Country</label>
+                    <select
+                      id="profileCountry"
+                      value={profileCountry}
+                      onChange={e => setProfileCountry(e.target.value)}
+                    >
+                      <option value="">Any country</option>
+                      <option value="United States">United States</option>
+                      <option value="United Kingdom">United Kingdom</option>
+                      <option value="Israel">Israel</option>
+                      <option value="Canada">Canada</option>
+                      <option value="Belgium">Belgium</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="field wide-field">
+                    <label>City / area</label>
+                    <input
+                      id="profileLocation"
+                      placeholder="Type any city, neighborhood, or area"
+                      value={profileLocation}
+                      onChange={e => setProfileLocation(e.target.value)}
+                    />
+                    <div className="location-hint">
+                      Examples: Boro Park, Lakewood, London, Manchester, Jerusalem, Beit Shemesh
+                    </div>
+                  </div>
+                </div>
+                <p className="profile-note">
+                  Gender and community stage are profile preferences. They should not be used to unlawfully exclude people from jobs. You can also choose not to share gender.
+                </p>
+                <div className="profile-actions">
+                  <span></span>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    id="profileNext"
+                    onClick={handleProfileNext1}
+                  >
+                    Next: What work do you want? →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {profileStep === 2 && (
+              <div className="profile-step on" id="profileStep2">
+                <span className="privacy-chip">🎯 Step 2 of 2 · Job preferences</span>
+                <h2>What kind of job are you looking for?</h2>
+                <p className="profile-lead">
+                  Choose the areas that interest you. You can change everything later.
+                </p>
+                <div className="field">
+                  <label>Job interests</label>
+                  <input
+                    id="interestSearch"
+                    placeholder="Search all job types..."
+                    style={{ marginBottom: "10px" }}
+                    value={interestSearchQuery}
+                    onChange={e => setInterestSearchQuery(e.target.value)}
+                  />
+                  <div className="choice-grid" id="jobInterestChoices">
+                    {INTEREST_OPTIONS.filter(opt =>
+                      opt.label.toLowerCase().includes(interestSearchQuery.toLowerCase())
+                    ).map(item => {
+                      const isSelected = profileInterests.includes(item.value);
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          className={`choice ${isSelected ? "selected" : ""}`}
+                          onClick={() => toggleInterest(item.value)}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="form-grid">
+                  <div className="field">
+                    <label>Schedule</label>
+                    <select
+                      id="profileSchedule"
+                      value={profileSchedule}
+                      onChange={e => setProfileSchedule(e.target.value)}
+                    >
+                      <option value="">Any schedule</option>
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Evenings">Evenings</option>
+                      <option value="Flexible">Flexible</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Minimum pay</label>
+                    <select
+                      id="profileMinPay"
+                      value={profileMinPay}
+                      onChange={e => setProfileMinPay(e.target.value)}
+                    >
+                      <option value="0">Any pay</option>
+                      <option value="20">$20+/hr</option>
+                      <option value="25">$25+/hr</option>
+                      <option value="30">$30+/hr</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="profile-actions">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    id="profilePrev"
+                    onClick={() => setProfileStep(1)}
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    id="finishProfile"
+                    onClick={handleFinishProfile}
+                  >
+                    Show Me Jobs
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. EMPLOYER GATE (5-step hiring flow) */}
+      <div
+        className={`employer-gate ${employerGateOpen ? "show" : ""}`}
+        id="employerGate"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="employerTitle"
+      >
+        <div className="employer-wrap">
+          <div className="employer-top">
+            <button
+              type="button"
+              className="btn btn-light"
+              id="employerBack"
+              onClick={() => {
+                setEmployerGateOpen(false);
+                setEntryGateOpen(true);
+              }}
+            >
+              ← Back
+            </button>
+            <div className="employer-progress" aria-label="Employer posting progress">
+              <div className={`pstep ${employerStep >= 1 ? "on" : ""}`} id="ep1">
+                <span>Job</span>
+              </div>
+              <div className={`pstep ${employerStep >= 2 ? "on" : ""}`} id="ep2">
+                <span>Work & Pay</span>
+              </div>
+              <div className={`pstep ${employerStep >= 3 ? "on" : ""}`} id="ep3">
+                <span>Candidate</span>
+              </div>
+              <div className={`pstep ${employerStep >= 4 ? "on" : ""}`} id="ep4">
+                <span>Contact</span>
+              </div>
+              <div className={`pstep ${employerStep >= 5 ? "on" : ""}`} id="ep5">
+                <span>Review</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="employer-card">
+            {/* Step 1: Business and role */}
+            {employerStep === 1 && (
+              <div className="employer-step on" id="employerStep1">
+                <div className="employer-intro">
+                  <div>
+                    <span className="privacy-chip">💼 Employer · Step 1 of 5</span>
+                    <h2 id="employerTitle">What are you hiring for?</h2>
+                    <p className="profile-lead">
+                      Start simple. Tell us the role and we’ll guide you through the rest.
+                    </p>
+                  </div>
+                  <span className="time-badge">About 3–5 minutes</span>
+                </div>
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">🏢</span>
+                    <div>
+                      <h3>Business and role</h3>
+                      <p>The basic information applicants see first.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label>
+                        Business / employer name <span className="required-star">*</span>
+                      </label>
+                      <input
+                        id="empCompany"
+                        placeholder="e.g. MBD Heating"
+                        value={empCompany}
+                        onChange={e => setEmpCompany(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>How many people are you hiring?</label>
+                      <select
+                        id="empOpenings"
+                        value={empOpenings}
+                        onChange={e => setEmpOpenings(e.target.value)}
+                      >
+                        <option>1 person</option>
+                        <option>2 people</option>
+                        <option>3–5 people</option>
+                        <option>6–10 people</option>
+                        <option>10+ people</option>
+                      </select>
+                    </div>
+                    <div className="field wide-field">
+                      <label>
+                        Job title <span className="required-star">*</span>
+                        <span className="helper">Use the title people would actually search for.</span>
+                      </label>
+                      <input
+                        id="empTitle"
+                        list="jobTitleSuggestions"
+                        placeholder="e.g. HVAC Technician, Bookkeeper, Driver"
+                        value={empTitle}
+                        onChange={e => setEmpTitle(e.target.value)}
+                      />
+                      <datalist id="jobTitleSuggestions">
+                        <option value="HVAC Technician" />
+                        <option value="HVAC Helper" />
+                        <option value="Bookkeeper" />
+                        <option value="Office Manager" />
+                        <option value="Sales Representative" />
+                        <option value="Customer Service Representative" />
+                        <option value="Dispatcher" />
+                        <option value="Route Driver" />
+                        <option value="Warehouse Worker" />
+                        <option value="Warehouse Manager" />
+                        <option value="Property Manager" />
+                        <option value="Graphic Designer" />
+                        <option value="IT Support" />
+                        <option value="Electrician" />
+                        <option value="Plumber" />
+                        <option value="Construction Helper" />
+                        <option value="Teacher" />
+                        <option value="Secretary" />
+                        <option value="Kitchen Manager" />
+                      </datalist>
+                    </div>
+                    <div className="field">
+                      <label>
+                        Job category <span className="required-star">*</span>
+                        <span className="helper">Not sure? Choose “Help me choose.”</span>
+                      </label>
+                      <select
+                        id="empCategory"
+                        value={empCategory}
+                        onChange={e => setEmpCategory(e.target.value)}
+                      >
+                        <option value="">Select a category</option>
+                        <option value="Help me choose">Help me choose</option>
+                        <option value="Accounting & Finance">Accounting & Finance</option>
+                        <option value="Administration & Office">Administration & Office</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Customer Service">Customer Service</option>
+                        <option value="HVAC">HVAC</option>
+                        <option value="Plumbing">Plumbing</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="Construction & Trades">Construction & Trades</option>
+                        <option value="Driving & Delivery">Driving & Delivery</option>
+                        <option value="Warehouse & Logistics">Warehouse & Logistics</option>
+                        <option value="IT & Technology">IT & Technology</option>
+                        <option value="Design & Creative">Design & Creative</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Real Estate & Property Management">Real Estate & Property Management</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Education">Education</option>
+                        <option value="Food Service">Food Service</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Security">Security</option>
+                        <option value="Management">Management</option>
+                        <option value="Cleaning & Maintenance">Cleaning & Maintenance</option>
+                        <option value="Manufacturing">Manufacturing</option>
+                        <option value="Legal">Legal</option>
+                        <option value="Nonprofit / Community">Nonprofit / Community</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Seniority</label>
+                      <select
+                        id="empSeniority"
+                        value={empSeniority}
+                        onChange={e => setEmpSeniority(e.target.value)}
+                      >
+                        <option>Entry level / willing to train</option>
+                        <option>Some experience</option>
+                        <option>Experienced</option>
+                        <option>Supervisor / manager</option>
+                        <option>Senior / specialist</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="smart-help">
+                    <span>✨</span>
+                    <div>
+                      <b>Not sure what category to choose?</b>
+                      <br />
+                      Type the job title and we can suggest a category.
+                    </div>
+                    <button
+                      className="btn btn-light"
+                      type="button"
+                      id="suggestCategory"
+                      onClick={handleSuggestCategory}
+                    >
+                      Suggest
+                    </button>
+                  </div>
+                </div>
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">📝</span>
+                    <div>
+                      <h3>What will this person do?</h3>
+                      <p>Plain language works best. Applicants should understand the job in a few seconds.</p>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label>
+                      Main responsibilities <span className="required-star">*</span>
+                      <span className="helper">
+                        Example: Install mini-splits, run line sets, help on service calls, keep work area clean.
+                      </span>
+                    </label>
+                    <textarea
+                      id="empDesc"
+                      rows={5}
+                      placeholder="Describe the main day-to-day work..."
+                      value={empDesc}
+                      onChange={e => setEmpDesc(e.target.value)}
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="profile-actions">
+                  <span></span>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    id="employerNext"
+                    onClick={handleEmployerNext1}
+                  >
+                    Work & Pay →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Location, schedule & pay */}
+            {employerStep === 2 && (
+              <div className="employer-step on" id="employerStep2">
+                <span className="privacy-chip">📍 Employer · Step 2 of 5</span>
+                <h2>Where, when, and how much?</h2>
+                <p className="profile-lead">
+                  These are the details job seekers usually want to know before they apply.
+                </p>
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">📍</span>
+                    <div>
+                      <h3>Location and work setup</h3>
+                      <p>Use any city or country. The platform is not limited to the U.S.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label>
+                        Country <span className="required-star">*</span>
+                      </label>
+                      <select
+                        id="empCountry"
+                        value={empCountry}
+                        onChange={e => setEmpCountry(e.target.value)}
+                      >
+                        <option value="">Choose country</option>
+                        <option>United States</option>
+                        <option>United Kingdom</option>
+                        <option>Israel</option>
+                        <option>Canada</option>
+                        <option>Belgium</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>
+                        City / neighborhood / area <span className="required-star">*</span>
+                      </label>
+                      <input
+                        id="empLocation"
+                        placeholder="e.g. Lakewood, Boro Park, London, Jerusalem"
+                        value={empLocation}
+                        onChange={e => setEmpLocation(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      color: "#6e8188",
+                      fontWeight: 900,
+                      margin: "4px 0 8px"
+                    }}
+                  >
+                    Work arrangement
+                  </label>
+                  <div className="option-grid" id="workArrangement">
+                    {["On-site", "Hybrid", "Remote", "Travel / field work"].map(item => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`option-card ${empArrangement === item ? "selected" : ""}`}
+                        onClick={() => setEmpArrangement(item)}
+                      >
+                        {item === "On-site" ? "🏢 On-site" : item === "Hybrid" ? "🔁 Hybrid" : item === "Remote" ? "🏠 Remote" : "🚐 Travel / field"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">🕒</span>
+                    <div>
+                      <h3>Schedule</h3>
+                      <p>Give enough detail so people know whether the job fits their life.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label>Employment type</label>
+                      <select
+                        id="empSchedule"
+                        value={empSchedule}
+                        onChange={e => setEmpSchedule(e.target.value)}
+                      >
+                        <option>Full-time</option>
+                        <option>Part-time</option>
+                        <option>Temporary</option>
+                        <option>Seasonal</option>
+                        <option>Contract / freelance</option>
+                        <option>Internship / training</option>
+                        <option>Flexible</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Typical hours</label>
+                      <input
+                        id="empHours"
+                        placeholder="e.g. 8:00 AM–5:00 PM"
+                        value={empHours}
+                        onChange={e => setEmpHours(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Start date</label>
+                      <select
+                        id="empStart"
+                        value={empStart}
+                        onChange={e => setEmpStart(e.target.value)}
+                      >
+                        <option>As soon as possible</option>
+                        <option>Within 2 weeks</option>
+                        <option>Within a month</option>
+                        <option>Specific date</option>
+                        <option>Flexible</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Specific start date (optional)</label>
+                      <input
+                        id="empStartDate"
+                        type="date"
+                        value={empStartDate}
+                        onChange={e => setEmpStartDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      color: "#6e8188",
+                      fontWeight: 900,
+                      margin: "4px 0 8px"
+                    }}
+                  >
+                    Typical work days
+                  </label>
+                  <div className="days-grid" id="workDays">
+                    {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Flexible"].map(day => {
+                      const isSelected = empDays.includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          className={`day-btn ${isSelected ? "selected" : ""}`}
+                          onClick={() => {
+                            setEmpDays(prev =>
+                              prev.includes(day) ? prev.filter(x => x !== day) : [...prev, day]
+                            );
+                          }}
+                        >
+                          {day === "Flexible" ? "Flexible" : day.slice(0, 3)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">💵</span>
+                    <div>
+                      <h3>Pay and benefits</h3>
+                      <p>Clear pay gets better applicants.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label>
+                        Pay type <span className="required-star">*</span>
+                      </label>
+                      <select
+                        id="empPayType"
+                        value={empPayType}
+                        onChange={e => setEmpPayType(e.target.value)}
+                      >
+                        <option>Hourly</option>
+                        <option>Yearly salary</option>
+                        <option>Weekly</option>
+                        <option>Daily</option>
+                        <option>Per job / project</option>
+                        <option>Commission</option>
+                        <option>Base + commission</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Currency</label>
+                      <select
+                        id="empCurrency"
+                        value={empCurrency}
+                        onChange={e => setEmpCurrency(e.target.value)}
+                      >
+                        <option>USD $</option>
+                        <option>GBP £</option>
+                        <option>ILS ₪</option>
+                        <option>CAD C$</option>
+                        <option>EUR €</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>
+                        Minimum pay <span className="required-star">*</span>
+                      </label>
+                      <input
+                        id="empPayMin"
+                        inputMode="decimal"
+                        placeholder="e.g. 25"
+                        value={empPayMin}
+                        onChange={e => setEmpPayMin(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Maximum pay</label>
+                      <input
+                        id="empPayMax"
+                        inputMode="decimal"
+                        placeholder="e.g. 35"
+                        value={empPayMax}
+                        onChange={e => setEmpPayMax(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      color: "#6e8188",
+                      fontWeight: 900,
+                      margin: "4px 0 8px"
+                    }}
+                  >
+                    Benefits / extras
+                  </label>
+                  <div className="toggle-row" id="benefitChoices">
+                    {[
+                      "Paid time off",
+                      "Health insurance",
+                      "Paid holidays",
+                      "Commission / bonus",
+                      "Transportation help",
+                      "Meals provided",
+                      "Training provided"
+                    ].map(benefit => {
+                      const isSelected = empBenefits.includes(benefit);
+                      return (
+                        <button
+                          key={benefit}
+                          type="button"
+                          className={`toggle-pill ${isSelected ? "selected" : ""}`}
+                          onClick={() => {
+                            setEmpBenefits(prev =>
+                              prev.includes(benefit) ? prev.filter(x => x !== benefit) : [...prev, benefit]
+                            );
+                          }}
+                        >
+                          {benefit}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="profile-actions">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    id="employerPrev2"
+                    onClick={() => setEmployerStep(1)}
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    id="employerNext2"
+                    onClick={handleEmployerNext2}
+                  >
+                    Candidate →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Candidate & requirements */}
+            {employerStep === 3 && (
+              <div className="employer-step on" id="employerStep3">
+                <span className="privacy-chip">👤 Employer · Step 3 of 5</span>
+                <h2>Who would be a good fit?</h2>
+                <p className="profile-lead">
+                  Choose only requirements that actually matter for doing the job.
+                </p>
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">🎯</span>
+                    <div>
+                      <h3>Experience and requirements</h3>
+                      <p>This helps match the right applicants without making the post complicated.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label>Experience needed</label>
+                      <select
+                        id="empExperience"
+                        value={empExperience}
+                        onChange={e => setEmpExperience(e.target.value)}
+                      >
+                        <option>No experience needed</option>
+                        <option>Some experience preferred</option>
+                        <option>1+ year required</option>
+                        <option>2–3 years required</option>
+                        <option>5+ years required</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Will you train?</label>
+                      <select
+                        id="empTrain"
+                        value={empTrain}
+                        onChange={e => setEmpTrain(e.target.value)}
+                      >
+                        <option>Yes, full training</option>
+                        <option>Some training</option>
+                        <option>No, must already know the job</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Driver’s license</label>
+                      <select
+                        id="empLicense"
+                        value={empLicense}
+                        onChange={e => setEmpLicense(e.target.value)}
+                      >
+                        <option>Not needed</option>
+                        <option>Preferred</option>
+                        <option>Required</option>
+                        <option>Required because driving is part of the job</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Own vehicle</label>
+                      <select
+                        id="empVehicle"
+                        value={empVehicle}
+                        onChange={e => setEmpVehicle(e.target.value)}
+                      >
+                        <option>Not needed</option>
+                        <option>Preferred</option>
+                        <option>Required</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Language needs</label>
+                      <input
+                        id="empLanguages"
+                        placeholder="e.g. English, Yiddish, Hebrew"
+                        value={empLanguages}
+                        onChange={e => setEmpLanguages(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Certification / license</label>
+                      <input
+                        id="empCertification"
+                        placeholder="e.g. CDL, HVAC certification, QuickBooks — or leave blank"
+                        value={empCertification}
+                        onChange={e => setEmpCertification(e.target.value)}
+                      />
+                    </div>
+                    <div className="field wide-field">
+                      <label>Skills you want</label>
+                      <input
+                        id="empSkills"
+                        placeholder="e.g. customer service, Excel, mini-splits, phone skills"
+                        value={empSkills}
+                        onChange={e => setEmpSkills(e.target.value)}
+                      />
+                    </div>
+                    <div className="field wide-field">
+                      <label>Physical or job-specific requirements</label>
+                      <textarea
+                        id="empPhysical"
+                        rows={3}
+                        placeholder="Only include things needed for the work, e.g. lift 50 lb, work on ladders, travel between job sites."
+                        value={empPhysical}
+                        onChange={e => setEmpPhysical(e.target.value)}
+                      ></textarea>
+                    </div>
+                  </div>
+                  <div className="employer-note">
+                    <b>Important:</b> The real platform should keep hiring requirements job-related and comply with local employment laws. Age or gender restrictions should only be used when legally required for a specific role.
+                  </div>
+                </div>
+
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">✅</span>
+                    <div>
+                      <h3>Application settings</h3>
+                      <p>Decide how much information you want before speaking with someone.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label>Resume</label>
+                      <select
+                        id="empResume"
+                        value={empResume}
+                        onChange={e => setEmpResume(e.target.value)}
+                      >
+                        <option>Not required</option>
+                        <option>Optional</option>
+                        <option>Required</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Application style</label>
+                      <select
+                        id="empApplyStyle"
+                        value={empApplyStyle}
+                        onChange={e => setEmpApplyStyle(e.target.value)}
+                      >
+                        <option>Quick apply — name + basic profile</option>
+                        <option>Profile + work experience</option>
+                        <option>Full application</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="question-box">
+                    <div className="qtop">
+                      <strong>Optional screening questions</strong>
+                      <button
+                        type="button"
+                        className="btn btn-light"
+                        id="addScreening"
+                        onClick={handleAddScreeningQuestion}
+                      >
+                        + Add question
+                      </button>
+                    </div>
+                    <div className="screening-list" id="screeningList">
+                      {screeningQuestions.map((q, idx) => (
+                        <div key={idx} className="screening-item">
+                          <span>{q}</span>
+                          <button
+                            className="remove-q"
+                            type="button"
+                            onClick={() => handleRemoveScreeningQuestion(idx)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-actions">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    id="employerPrev3"
+                    onClick={() => setEmployerStep(2)}
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    id="employerNext3"
+                    onClick={handleEmployerNext3}
+                  >
+                    Contact →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Contact & Messaging */}
+            {employerStep === 4 && (
+              <div className="employer-step on" id="employerStep4">
+                <span className="privacy-chip">💬 Employer · Step 4 of 5</span>
+                <h2>How should applicants reach you?</h2>
+                <p className="profile-lead">
+                  Use app messaging, regular SMS, or both. Personal numbers can stay private from applicants.
+                </p>
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">📨</span>
+                    <div>
+                      <h3>Messaging</h3>
+                      <p>Choose what works with the devices you actually use.</p>
+                    </div>
+                  </div>
+                  <div className="option-grid" id="messageOptions">
+                    {["App messages", "SMS text messages", "Both app + SMS", "Email notifications"].map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={`option-card ${empMessaging === opt ? "selected" : ""}`}
+                        onClick={() => setEmpMessaging(opt)}
+                      >
+                        {opt === "App messages" ? "📱 App messages" : opt === "SMS text messages" ? "💬 SMS texts" : opt === "Both app + SMS" ? "🔁 App + SMS" : "✉️ Email"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="smart-help">
+                    <span>🔒</span>
+                    <div>
+                      <b>Central SMS number</b>
+                      <br />
+                      Applicants can message in the app while you receive regular text messages. Replies can route back to the correct applicant without exposing personal numbers.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-section">
+                  <div className="form-section-title">
+                    <span className="sicon">☎️</span>
+                    <div>
+                      <h3>Employer contact</h3>
+                      <p>This is for verification and routing. It does not have to be shown publicly.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label>
+                        Contact person <span className="required-star">*</span>
+                      </label>
+                      <input
+                        id="empContactName"
+                        placeholder="Name"
+                        value={empContactName}
+                        onChange={e => setEmpContactName(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>
+                        Phone number <span className="required-star">*</span>
+                      </label>
+                      <input
+                        id="empPhone"
+                        type="tel"
+                        placeholder="For verification / SMS"
+                        value={empPhone}
+                        onChange={e => setEmpPhone(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Email</label>
+                      <input
+                        id="empEmail"
+                        type="email"
+                        placeholder="name@business.com"
+                        value={empEmail}
+                        onChange={e => setEmpEmail(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Can applicants call you?</label>
+                      <select
+                        id="empCalls"
+                        value={empCalls}
+                        onChange={e => setEmpCalls(e.target.value)}
+                      >
+                        <option>No — messages only</option>
+                        <option>Yes, after I reply</option>
+                        <option>Yes, show business number</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="profile-actions">
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    id="employerPrev4"
+                    onClick={() => setEmployerStep(3)}
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    id="employerNext4"
+                    onClick={handleEmployerNext4}
+                  >
+                    Review Job →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Review & Approval */}
+            {employerStep === 5 && (
+              <div className="employer-step on" id="employerStep5">
+                <span className="privacy-chip">👀 Employer · Step 5 of 5</span>
+                <h2>Review your job</h2>
+                <p className="profile-lead">
+                  This is what your team will review before the employer sees any paid publishing options.
+                </p>
+
+                <div className="mini-summary" id="employerMiniSummary">
+                  <div className="mitem">
+                    <small>Location</small>
+                    <strong>{empLocation}, {empCountry}</strong>
+                  </div>
+                  <div className="mitem">
+                    <small>Pay</small>
+                    <strong>{getPayText()}</strong>
+                  </div>
+                  <div className="mitem">
+                    <small>Schedule</small>
+                    <strong>{empSchedule} · {empArrangement}</strong>
+                  </div>
+                  <div className="mitem">
+                    <small>Hiring</small>
+                    <strong>{empOpenings}</strong>
+                  </div>
+                </div>
+
+                <div
+                  className="post-preview"
+                  id="employerPreview"
+                  style={{ opacity: employerSubmitted ? 0.7 : 1 }}
+                >
+                  <h3>{empTitle}</h3>
+                  <div className="preview-meta">
+                    <span>{empCompany}</span>
+                    <span>•</span>
+                    <span>📍 {empLocation}, {empCountry}</span>
+                    <span className="tag">{empSchedule}</span>
+                    <span className="category-pill">{empCategory}</span>
+                  </div>
+                  <div className="preview-pay">{getPayText()}</div>
+                  <div className="preview-section">
+                    <h4>Job description</h4>
+                    <p style={{ lineHeight: 1.65, color: "#5d7279", margin: 0 }}>
+                      {empDesc}
+                    </p>
+                  </div>
+                  <div className="preview-section">
+                    <h4>Schedule & setup</h4>
+                    <p style={{ lineHeight: 1.65, color: "#5d7279", margin: 0 }}>
+                      {empArrangement}
+                      {empHours ? ` · ${empHours}` : ""}
+                      {empDays.length ? ` · ${empDays.join(", ")}` : ""}
+                    </p>
+                  </div>
+                  <div className="preview-section">
+                    <h4>What we&apos;re looking for</h4>
+                    <ul className="preview-bullets">
+                      <li>{empExperience}</li>
+                      <li>{empTrain}</li>
+                      {empLicense !== "Not needed" && <li>{empLicense}</li>}
+                      {empLanguages && <li>Languages: {empLanguages}</li>}
+                      {empSkills && <li>Skills: {empSkills}</li>}
+                      {empResume !== "Not required" && <li>Resume: {empResume}</li>}
+                    </ul>
+                  </div>
+                  {empBenefits.length > 0 && (
+                    <div className="preview-section">
+                      <h4>Benefits / extras</h4>
+                      <div className="preview-meta">
+                        {empBenefits.map(b => (
+                          <span key={b} className="tag">{b}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="after-note" style={{ marginTop: "18px" }}>
+                    Applicant messages: <b>{empMessaging}</b>
+                  </div>
+                </div>
+
+                <div className="review-checklist">
+                  <div className="review-check">
+                    <b>✓ Clear pay</b>
+                    Applicants can see how the job pays.
+                  </div>
+                  <div className="review-check">
+                    <b>✓ Clear schedule</b>
+                    Work type, days and hours are included.
+                  </div>
+                  <div className="review-check">
+                    <b>✓ Contact routing</b>
+                    App/SMS preferences are saved privately.
+                  </div>
+                </div>
+
+                <div className="after-note">
+                  No payment is taken now. First your team reviews the listing. After approval, the employer chooses Standard, Featured, or a monthly employer plan.
+                </div>
+
+                {!employerSubmitted && !employerApproved && (
+                  <div className="profile-actions">
+                    <button
+                      type="button"
+                      className="btn btn-light"
+                      id="employerPrev5"
+                      onClick={() => setEmployerStep(4)}
+                    >
+                      ← Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      id="submitEmployerJob"
+                      onClick={handleSubmitEmployerJob}
+                    >
+                      Submit for Review
+                    </button>
+                  </div>
+                )}
+
+                {employerSubmitted && !employerApproved && (
+                  <div className="review-status" id="reviewStatus" style={{ marginTop: "20px" }}>
+                    <div className="status-icon">⏳</div>
+                    <h3>Job submitted for review</h3>
+                    <p>
+                      Your team checks the listing and can contact the employer if anything needs clarification. The employer is not charged while it is pending.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      id="simulateApproval"
+                      onClick={handleSimulateApproval}
+                    >
+                      Prototype: Simulate Approval
+                    </button>
+                  </div>
+                )}
+
+                {employerApproved && (
+                  <div className="approval-box show" id="approvalBox">
+                    <div className="approval-banner">
+                      ✓ Approved — now choose how you want to publish this job.
+                    </div>
+                    <h2 style={{ fontSize: "30px" }}>Choose a publishing option</h2>
+                    <p className="profile-lead">
+                      This is the first time the employer sees the paid plans.
+                    </p>
+                    <div className="publish-plans">
+                      <div className="publish-plan">
+                        <h4>Standard</h4>
+                        <div className="pamount">
+                          $25 <small>/ 30 days</small>
+                        </div>
+                        <p>One approved listing with applications and app messaging.</p>
+                        <button
+                          type="button"
+                          className="btn btn-light publish-choice"
+                          onClick={() => handleChoosePublishPlan("Standard — $25")}
+                        >
+                          Publish Standard
+                        </button>
+                      </div>
+                      <div className="publish-plan featured">
+                        <span className="popular">POPULAR</span>
+                        <h4>Featured</h4>
+                        <div className="pamount">
+                          $50 <small>/ listing</small>
+                        </div>
+                        <p>Higher placement plus app and SMS messaging options.</p>
+                        <button
+                          type="button"
+                          className="btn btn-primary publish-choice"
+                          onClick={() => handleChoosePublishPlan("Featured — $50")}
+                        >
+                          Publish Featured
+                        </button>
+                      </div>
+                      <div className="publish-plan">
+                        <h4>Employer Pro</h4>
+                        <div className="pamount">
+                          $99 <small>/ month</small>
+                        </div>
+                        <p>For regular hirers with multiple listings and priority tools.</p>
+                        <button
+                          type="button"
+                          className="btn btn-light publish-choice"
+                          onClick={() => handleChoosePublishPlan("Employer Pro — $99/month")}
+                        >
+                          Choose Pro
+                        </button>
+                      </div>
+                    </div>
+                    <div className="after-note">
+                      Payment happens only after approval and after the employer selects a publishing option.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Back to Start Button */}
+      <button
+        type="button"
+        className={`back-to-start ${showBackToStart ? "show" : ""}`}
+        id="backToStart"
+        onClick={handleBackToStart}
+      >
+        ← Choose Job Seeking / Hiring
+      </button>
+
+      {/* Topbar */}
+      <header className="topbar">
+        <div className="shell nav">
+          <a className="brand" href="#home" aria-label="YidMatch Home">
+            <Image
+              src="/logo.png"
+              alt="YidMatch"
+              width={160}
+              height={52}
+              style={{ height: "42px", width: "auto", objectFit: "contain", borderRadius: "9px" }}
+              priority
+            />
+          </a>
+          <nav className="navlinks">
+            <a className="navlink active" href="#jobs">Find Jobs</a>
+            <button
+              type="button"
+              className="navlink"
+              onClick={handleChooseHiring}
+            >
+              For Employers
+            </button>
+          </nav>
+          <div className="nav-actions">
+            <button
+              type="button"
+              className="btn btn-light"
+              onClick={() => showToast("Sign-in flow would open here.")}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleChooseHiring}
+            >
+              Post a Job
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main id="home">
+        {/* Hero Section */}
+        <section className="hero">
+          <div className="shell hero-grid">
+            <div>
+              <span className="eyebrow">
+                <span className="dot"></span>Built for our community
+              </span>
+              <h1>
+                Find the right job. <span className="accent">Hire the right person.</span>
+              </h1>
+              <p className="lead">
+                A simple, trusted job platform for the heimishe community — with team-reviewed listings, easy applications, private messaging and optional SMS for basic phones.
+              </p>
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                >
+                  Find a Job
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={handleChooseHiring}
+                >
+                  I&apos;m Hiring
+                </button>
+              </div>
+              <div className="hero-note">
+                <span><i className="check">✓</i>Free for job seekers</span>
+                <span><i className="check">✓</i>Listings reviewed before publishing</span>
+                <span><i className="check">✓</i>English + Yiddish ready</span>
+              </div>
+            </div>
+            <div className="phone-card" aria-label="Mobile app preview">
+              <div className="phone-screen">
+                <div className="phone-head">
+                  <div className="mini-brand" style={{ display: "inline-flex", alignItems: "center" }}>
+                    <Image
+                      src="/logo.png"
+                      alt="YidMatch"
+                      width={100}
+                      height={34}
+                      style={{ height: "24px", width: "auto", objectFit: "contain", borderRadius: "5px" }}
+                    />
+                  </div>
+                  <div className="mini-title">Find work that fits you.</div>
+                  <div className="search">🔎 Search HVAC, driver, office...</div>
+                  <div className="chips">
+                    <span className="chip">📍 Location</span>
+                    <span className="chip">💵 Pay</span>
+                    <span className="chip">🕒 Schedule</span>
+                  </div>
+                </div>
+                <div className="phone-body">
+                  <div className="job-mini">
+                    <div className="job-icon">🛠️</div>
+                    <div>
+                      <h4>HVAC Installer / Technician</h4>
+                      <p>Established Contractor · Lakewood</p>
+                    </div>
+                    <div className="pay">$28–40/hr</div>
+                  </div>
+                  <div className="job-mini">
+                    <div className="job-icon">📈</div>
+                    <div>
+                      <h4>Sales Representative</h4>
+                      <p>Growing Company · Brooklyn</p>
+                    </div>
+                    <div className="pay">$30+/hr</div>
+                  </div>
+                  <div className="job-mini">
+                    <div className="job-icon">🧾</div>
+                    <div>
+                      <h4>Bookkeeper</h4>
+                      <p>Business Office · Monsey</p>
+                    </div>
+                    <div className="pay">$25–32/hr</div>
+                  </div>
+                  <div className="job-mini">
+                    <div className="job-icon">💻</div>
+                    <div>
+                      <h4>Junior IT Support</h4>
+                      <p>Office · Lakewood</p>
+                    </div>
+                    <div className="pay">$25–32/hr</div>
+                  </div>
+                </div>
+                <div className="phone-footer">
+                  <span className="on">⌂<br />Home</span>
+                  <span>▣<br />Jobs</span>
+                  <span>＋<br />Post</span>
+                  <span>✉<br />Messages</span>
+                  <span>◉<br />Profile</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Jobs Search & Listings Section */}
+        <section className="section" id="jobs">
+          <div className="shell">
+            <div className="section-head">
+              <div>
+                <h2 className="compact-title">Find a job</h2>
+                <p className="compact-copy">
+                  Search any job type in any location. You are not limited to preset cities or a few categories.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={() => showToast("Job alert saved — prototype demo.")}
+              >
+                🔔 Create Job Alert
+              </button>
+            </div>
+
+            {profileSummary.show && (
+              <div className="profile-summary show" id="profileSummary">
+                <div>
+                  <strong id="profileSummaryTitle">Your job preferences</strong>
+                  <small id="profileSummaryText">{profileSummary.text}</small>
+                </div>
+                <button
+                  type="button"
+                  id="editProfile"
+                  onClick={() => {
+                    setProfileGateOpen(true);
+                    setProfileStep(1);
+                  }}
+                >
+                  Edit Profile
+                </button>
+              </div>
+            )}
+
+            <div className="dashboard-search">
+              <div className="search-row">
+                <div className="search-box">
+                  🔎{" "}
+                  <input
+                    id="searchInput"
+                    placeholder="Job title, skill, or keyword — e.g. HVAC, bookkeeping, driver"
+                    value={searchInput}
+                    onChange={e => setSearchInput(e.target.value)}
+                  />
+                </div>
+                <div className="search-box">
+                  📍{" "}
+                  <input
+                    id="locationSearch"
+                    placeholder="Any city, neighborhood, or country"
+                    value={locationSearch}
+                    onChange={e => setLocationSearch(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  id="searchJobsBtn"
+                  onClick={() => {}}
+                >
+                  Search Jobs
+                </button>
+              </div>
+              <div className="dashboard-subrow">
+                <button
+                  type="button"
+                  className={`filter-btn ${quickCat === "" && categoryFilter === "" ? "active" : ""}`}
+                  onClick={() => {
+                    setQuickCat("");
+                    setCategoryFilter("");
+                  }}
+                >
+                  All Jobs
+                </button>
+                {["Accounting", "Sales", "HVAC", "Driving", "IT"].map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`filter-btn ${quickCat === cat || categoryFilter === cat ? "active" : ""}`}
+                    onClick={() => {
+                      setQuickCat(cat);
+                      setCategoryFilter(cat);
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="filter-btn"
+                  id="showAllCategories"
+                  onClick={() => setShowCategoryBrowser(prev => !prev)}
+                >
+                  ☰ All job types
+                </button>
+              </div>
+            </div>
+
+            <div className="jobs-layout">
+              <aside className="panel filters">
+                <h3>Filters</h3>
+                <div className="field">
+                  <label>Job type</label>
+                  <select
+                    id="categoryFilter"
+                    value={categoryFilter}
+                    onChange={e => {
+                      setCategoryFilter(e.target.value);
+                      setQuickCat(e.target.value);
+                    }}
+                  >
+                    <option value="">All job types</option>
+                    {JOB_CATEGORIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Country</label>
+                  <select
+                    id="countryFilter"
+                    value={countryFilter}
+                    onChange={e => setCountryFilter(e.target.value)}
+                  >
+                    <option value="">Any country</option>
+                    <option>United States</option>
+                    <option>United Kingdom</option>
+                    <option>Israel</option>
+                    <option>Canada</option>
+                    <option>Belgium</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Minimum pay</label>
+                  <select
+                    id="payFilter"
+                    value={payFilter}
+                    onChange={e => setPayFilter(e.target.value)}
+                  >
+                    <option value="0">Any pay</option>
+                    <option value="18">18+ / hr</option>
+                    <option value="20">20+ / hr</option>
+                    <option value="25">25+ / hr</option>
+                    <option value="30">30+ / hr</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Schedule</label>
+                  <select
+                    id="typeFilter"
+                    value={typeFilter}
+                    onChange={e => setTypeFilter(e.target.value)}
+                  >
+                    <option value="">Any schedule</option>
+                    <option>Full-time</option>
+                    <option>Part-time</option>
+                    <option>Evenings</option>
+                    <option>Flexible</option>
+                    <option>Temporary</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  style={{ width: "100%" }}
+                  id="clearFilters"
+                  onClick={handleClearFilters}
+                >
+                  Clear Filters
+                </button>
+              </aside>
+
+              <div>
+                {showCategoryBrowser && (
+                  <div className="category-browser" id="categoryBrowser">
+                    <h4>Browse all job types</h4>
+                    <div className="category-list" id="categoryList">
+                      {JOB_CATEGORIES.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          className="category-link"
+                          onClick={() => {
+                            setCategoryFilter(c);
+                            setQuickCat(c);
+                            setShowCategoryBrowser(false);
+                          }}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="jobs-list" id="jobsList">
+                  {filteredJobs.length > 0 ? (
+                    filteredJobs.map(j => (
+                      <article key={j.id} className="panel job-card" data-id={j.id}>
+                        <div className="big-icon">{j.icon}</div>
+                        <div>
+                          <h3>{j.title}</h3>
+                          <div className="meta">
+                            <span>{j.company}</span>
+                            <span>•</span>
+                            <span>📍 {j.location}</span>
+                            <span className="tag">{j.type}</span>
+                            <span className="category-pill">{j.category}</span>
+                          </div>
+                          <p style={{ color: "#677a80", lineHeight: 1.5, margin: "10px 0 0" }}>
+                            {j.desc}
+                          </p>
+                        </div>
+                        <div className="side">
+                          <div className="salary">{j.payText}</div>
+                          <div className="age">{j.age}</div>
+                          <button
+                            type="button"
+                            className="btn btn-light"
+                            style={{ marginTop: "10px", padding: "8px 10px" }}
+                            onClick={() => setSelectedJob(j)}
+                          >
+                            View Job
+                          </button>
+                        </div>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="panel" style={{ padding: "28px", textAlign: "center", color: "#6f8087" }}>
+                      No matching jobs. Try a broader job type or location.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer>
+        <div className="shell footer-row">
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <Image
+              src="/logo.png"
+              alt="YidMatch"
+              width={96}
+              height={32}
+              style={{ height: "26px", width: "auto", objectFit: "contain", borderRadius: "5px" }}
+            />
+            <span>© 2026 YidMatch · Prototype</span>
+          </div>
+          <div className="foot-links">
+            <a href="#jobs">Jobs</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleChooseHiring(); }}>For Employers</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); showToast("Privacy policy placeholder."); }}>Privacy</a>
+          </div>
+        </div>
+      </footer>
+
+      {/* Job Details Modal */}
+      {selectedJob && (
+        <div
+          className="modal open"
+          id="jobModal"
+          onClick={e => {
+            if ((e.target as HTMLElement).id === "jobModal") setSelectedJob(null);
+          }}
+        >
+          <div className="modal-box">
+            <div className="modal-head">
+              <strong>Job Details</strong>
+              <button
+                type="button"
+                className="close"
+                id="closeModal"
+                onClick={() => setSelectedJob(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body" id="modalBody">
+              <h3>{selectedJob.icon} {selectedJob.title}</h3>
+              <div style={{ color: "#6e8086" }}>
+                {selectedJob.company} · {selectedJob.location}
+              </div>
+              <div className="details-grid">
+                <div className="detail">
+                  <b>PAY</b>
+                  {selectedJob.payText}
+                </div>
+                <div className="detail">
+                  <b>SCHEDULE</b>
+                  {selectedJob.type}
+                </div>
+                <div className="detail">
+                  <b>STATUS</b>
+                  Approved
+                </div>
+              </div>
+              <h4>Job Description</h4>
+              <p style={{ lineHeight: 1.65, color: "#5d7279" }}>
+                {selectedJob.desc}
+              </p>
+              <h4>Why this listing stands out</h4>
+              <p style={{ lineHeight: 1.65, color: "#5d7279" }}>
+                Clear pay, location, job category and schedule are shown up front. Applicants can apply quickly and then message the employer without needing to share a personal number.
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    showToast("Application started — prototype demo.");
+                    setSelectedJob(null);
+                  }}
+                >
+                  Apply for this Job
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={() => showToast("Job saved — prototype demo.")}
+                >
+                  Save Job
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Toast */}
+      <div className={`toast ${toastVisible ? "show" : ""}`} id="toast">
+        {toastMessage}
+      </div>
+    </>
+  );
+}
