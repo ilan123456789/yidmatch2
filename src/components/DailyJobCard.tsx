@@ -130,13 +130,13 @@ export const DailyJobCard: React.FC<DailyJobCardProps> = ({ job }) => {
             <div className="space-y-3">
               {job.contactWhatsapp && (
                 <a
-                  href={`https://wa.me/${job.contactWhatsapp.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(job.contactName)},%20I%20am%20messaging%20about%20your%20YID%20MATCH%20gig:%20${encodeURIComponent(job.title)}`}
+                  href={`https://wa.me/${job.contactWhatsapp.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(job.contactName)},%20I%20am%20inquiring%20about%20your%20YID%20MATCH%20gig:%20${encodeURIComponent(job.title)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg shadow-sm transition text-sm"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Message on WhatsApp</span>
+                  <span>Contact on WhatsApp</span>
                 </a>
               )}
 

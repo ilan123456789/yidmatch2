@@ -405,11 +405,11 @@ export default function HomePage() {
   const [empApplyStyle, setEmpApplyStyle] = useState("Quick apply — name + basic profile");
   const [screeningQuestions, setScreeningQuestions] = useState<string[]>([]);
 
-  const [empMessaging, setEmpMessaging] = useState("App messages");
+  const [empMessaging, setEmpMessaging] = useState("Email notifications");
   const [empContactName, setEmpContactName] = useState("");
   const [empPhone, setEmpPhone] = useState("");
   const [empEmail, setEmpEmail] = useState("");
-  const [empCalls, setEmpCalls] = useState("No — messages only");
+  const [empCalls, setEmpCalls] = useState("Email inquiries only");
 
   const [employerSubmitted, setEmployerSubmitted] = useState(false);
   const [employerApproved, setEmployerApproved] = useState(false);
@@ -859,6 +859,7 @@ export default function HomePage() {
               alt="YidMatch"
               width={380}
               height={125}
+              className="entry-logo-img"
               style={{
                 height: "115px",
                 width: "auto",
@@ -887,7 +888,7 @@ export default function HomePage() {
               <span className="role-copy">
                 <span className="role-label">Job Seeking</span>
                 <h2>I&apos;m Looking for a Job</h2>
-                <p>Browse approved jobs, save your preferences, apply, and message employers.</p>
+                <p>Browse approved jobs, save your preferences, and apply directly to employers.</p>
               </span>
               <span className="role-arrow">→</span>
             </button>
@@ -915,7 +916,7 @@ export default function HomePage() {
               <span className="role-copy">
                 <span className="role-label">Hiring</span>
                 <h2>I&apos;m Hiring</h2>
-                <p>Post a job, reach the right people, review applicants, and use app or SMS messaging.</p>
+                <p>Post a job, reach the right people, and review qualified applicants.</p>
               </span>
               <span className="role-arrow">→</span>
             </button>
@@ -1897,40 +1898,40 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Step 4: Contact & Messaging */}
+            {/* Step 4: Contact & Notifications */}
             {employerStep === 4 && (
               <div className="employer-step on" id="employerStep4">
-                <span className="privacy-chip">💬 Employer · Step 4 of 5</span>
+                <span className="privacy-chip">📬 Employer · Step 4 of 5</span>
                 <h2>How should applicants reach you?</h2>
                 <p className="profile-lead">
-                  Use app messaging, regular SMS, or both. Personal numbers can stay private from applicants.
+                  Choose your preferred contact methods for applications and inquiries.
                 </p>
                 <div className="form-section">
                   <div className="form-section-title">
-                    <span className="sicon">📨</span>
+                    <span className="sicon">📬</span>
                     <div>
-                      <h3>Messaging</h3>
-                      <p>Choose what works with the devices you actually use.</p>
+                      <h3>Preferred Contact Method</h3>
+                      <p>Choose how applicants and the platform should reach you.</p>
                     </div>
                   </div>
                   <div className="option-grid" id="messageOptions">
-                    {["App messages", "SMS text messages", "Both app + SMS", "Email notifications"].map(opt => (
+                    {["Email notifications", "Phone calls", "WhatsApp / Text"].map(opt => (
                       <button
                         key={opt}
                         type="button"
                         className={`option-card ${empMessaging === opt ? "selected" : ""}`}
                         onClick={() => setEmpMessaging(opt)}
                       >
-                        {opt === "App messages" ? "📱 App messages" : opt === "SMS text messages" ? "💬 SMS texts" : opt === "Both app + SMS" ? "🔁 App + SMS" : "✉️ Email"}
+                        {opt === "Email notifications" ? "✉️ Email" : opt === "Phone calls" ? "📞 Phone call" : "💬 WhatsApp / Text"}
                       </button>
                     ))}
                   </div>
                   <div className="smart-help">
                     <span>🔒</span>
                     <div>
-                      <b>Central SMS number</b>
+                      <b>Direct & Verified Contact</b>
                       <br />
-                      Applicants can message in the app while you receive regular text messages. Replies can route back to the correct applicant without exposing personal numbers.
+                      Applicants reach you directly according to your preferences. Your contact information is kept secure.
                     </div>
                   </div>
                 </div>
@@ -1984,8 +1985,8 @@ export default function HomePage() {
                         value={empCalls}
                         onChange={e => setEmpCalls(e.target.value)}
                       >
-                        <option>No — messages only</option>
-                        <option>Yes, after I reply</option>
+                        <option>Email inquiries only</option>
+                        <option>Yes, after resume review</option>
                         <option>Yes, show business number</option>
                       </select>
                     </div>
@@ -2091,7 +2092,7 @@ export default function HomePage() {
                     </div>
                   )}
                   <div className="after-note" style={{ marginTop: "18px" }}>
-                    Applicant messages: <b>{empMessaging}</b>
+                    Preferred contact: <b>{empMessaging}</b>
                   </div>
                 </div>
 
@@ -2106,7 +2107,7 @@ export default function HomePage() {
                   </div>
                   <div className="review-check">
                     <b>✓ Contact routing</b>
-                    App/SMS preferences are saved privately.
+                    Contact preferences are saved securely.
                   </div>
                 </div>
 
@@ -2168,7 +2169,7 @@ export default function HomePage() {
                         <div className="pamount">
                           $25 <small>/ 30 days</small>
                         </div>
-                        <p>One approved listing with applications and app messaging.</p>
+                        <p>One approved listing with direct applications and candidate review.</p>
                         <button
                           type="button"
                           className="btn btn-light publish-choice"
@@ -2183,7 +2184,7 @@ export default function HomePage() {
                         <div className="pamount">
                           $50 <small>/ listing</small>
                         </div>
-                        <p>Higher placement plus app and SMS messaging options.</p>
+                        <p>Higher placement plus instant alerts to qualified candidates.</p>
                         <button
                           type="button"
                           className="btn btn-primary publish-choice"
@@ -2617,7 +2618,7 @@ export default function HomePage() {
               </p>
               <h4>Why this listing stands out</h4>
               <p style={{ lineHeight: 1.65, color: "#5d7279" }}>
-                Clear pay, location, job category and schedule are shown up front. Applicants can apply quickly and then message the employer without needing to share a personal number.
+                Clear pay, location, job category and schedule are shown up front. Applicants can apply quickly with direct candidate contact.
               </p>
               <div className="modal-actions">
                 <button

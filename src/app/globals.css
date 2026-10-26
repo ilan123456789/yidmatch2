@@ -672,102 +672,6 @@ h1 {
   gap: 22px;
 }
 
-.chat {
-  overflow: hidden;
-}
-
-.chat-head {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.person {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #dff5ee;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  color: var(--deep);
-}
-
-.status {
-  font-size: 12px;
-  color: #729087;
-}
-
-.chat-body {
-  padding: 22px;
-  background: #f7fbf9;
-  min-height: 330px;
-  max-height: 380px;
-  overflow-y: auto;
-}
-
-.bubble {
-  max-width: 78%;
-  padding: 12px 14px;
-  border-radius: 16px;
-  margin-bottom: 10px;
-  line-height: 1.45;
-  font-size: 14px;
-}
-
-.bubble.in {
-  background: #fff;
-  border: 1px solid #e3ece9;
-  border-top-left-radius: 5px;
-}
-
-.bubble.out {
-  background: #0b897a;
-  color: white;
-  margin-left: auto;
-  border-top-right-radius: 5px;
-}
-
-.bridge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  color: #648078;
-  font-size: 12px;
-  font-weight: 800;
-  margin: 10px 0 14px;
-}
-
-.bridge:before, .bridge:after {
-  content: "";
-  height: 1px;
-  background: #d8e7e2;
-  flex: 1;
-}
-
-.chat-compose {
-  padding: 14px;
-  border-top: 1px solid var(--line);
-  display: flex;
-  gap: 9px;
-}
-
-.chat-compose input {
-  flex: 1;
-  border: 1px solid #dce7e4;
-  border-radius: 12px;
-  padding: 12px 13px;
-  outline: none;
-}
 
 .sms-card {
   padding: 26px;
@@ -2505,39 +2409,73 @@ body {
     width: 32px;
   }
   .entry-gate {
-    align-items: flex-start;
-    padding: 26px 14px;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 14px;
+    min-height: 100dvh;
+    overflow-y: auto;
   }
   .entry-wrap {
-    padding-top: 22px;
+    padding-top: 0;
+    max-width: 420px;
+    margin: 0 auto;
   }
   .entry-brand {
-    margin-bottom: 26px;
+    margin-bottom: 10px;
+  }
+  .entry-logo-img {
+    height: 54px !important;
+    max-height: 58px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 6px 20px rgba(7, 28, 53, 0.28) !important;
   }
   .entry-title {
-    font-size: 34px;
+    font-size: 22px;
+    line-height: 1.15;
+    margin: 0 auto 3px;
   }
   .entry-sub {
-    font-size: 16px;
-    margin-bottom: 22px;
+    font-size: 12.5px;
+    line-height: 1.35;
+    margin-bottom: 12px;
   }
   .role-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
   .role-card {
-    padding: 22px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    gap: 12px;
+    box-shadow: 0 4px 16px rgba(8, 28, 59, 0.12);
   }
   .role-icon {
-    width: 58px;
-    height: 58px;
-    border-radius: 17px;
-    font-size: 27px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 20px;
+    flex: 0 0 40px;
+  }
+  .role-label {
+    font-size: 10px;
+    margin-bottom: 1px;
+    letter-spacing: 0.08em;
   }
   .role-card h2 {
-    font-size: 23px;
+    font-size: 15.5px;
+    margin: 0 0 2px;
+    line-height: 1.2;
+  }
+  .role-card p {
+    font-size: 11.5px;
+    line-height: 1.3;
+  }
+  .role-arrow {
+    font-size: 18px;
   }
   .entry-foot {
-    margin-top: 16px;
+    margin-top: 10px;
+    font-size: 12px;
   }
   .back-to-start {
     left: 12px;
