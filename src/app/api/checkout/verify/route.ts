@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { updateJob, getJobById } from "@/lib/db";
+import { updateJob, getJobById, findMatchingAlerts } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
+import { sendJobAlertNotification } from "@/lib/sms/twilio";
 
 export async function POST(req: Request) {
   try {
@@ -35,6 +36,36 @@ export async function POST(req: Request) {
         paymentStatus: "PAID",
         paymentId: sessionId || "sim_pay_" + Date.now(),
       });
+
+      // Automatically dispatch SMS alerts to all matching job seekers
+      try {
+        const origin = req.headers.get("origin") || req.headers.get("host") || "http://localhost:3000";
+        const baseUrl = origin.startsWith("http") ? origin : `http://${origin}`;
+        const matchingAlerts = await findMatchingAlerts({
+          title: job.title,
+          location: job.location,
+          neighborhood: job.neighborhood,
+          salaryMin: job.salaryMin,
+        });
+
+        for (const alert of matchingAlerts) {
+          await sendJobAlertNotification({
+            to: alert.phone,
+            recipientName: alert.name,
+            job: {
+              id: job.id,
+              title: job.title,
+              company: job.company,
+              location: job.neighborhood || job.location,
+              salaryDisplay: job.salaryDisplay,
+            },
+            baseUrl,
+          });
+        }
+      } catch (alertErr) {
+        console.warn("[Verify Checkout] Alert dispatch error:", alertErr);
+      }
+
       return NextResponse.json({ success: true, job: updated });
     } else {
       return NextResponse.json({ error: "Payment verification failed" }, { status: 400 });

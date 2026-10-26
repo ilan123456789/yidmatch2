@@ -74,13 +74,13 @@ function CheckoutSuccessContent() {
 
   return (
     <div className="max-w-xl mx-auto my-16 px-4">
-      <div className="bg-white rounded-2xl border-2 border-emerald-500/30 p-8 text-center space-y-6 shadow-xl">
-        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner animate-in zoom-in-75">
+      <div className="bg-white rounded-2xl border-2 border-brand-blue/30 p-8 text-center space-y-6 shadow-xl">
+        <div className="w-16 h-16 bg-blue-100 text-brand-blue rounded-full flex items-center justify-center mx-auto shadow-inner animate-in zoom-in-75">
           <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
         </div>
 
         <div className="space-y-2">
-          <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+          <span className="text-xs font-bold text-brand-blue uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
             Payment Confirmed • $25.00 USD
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900">

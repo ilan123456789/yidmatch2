@@ -83,3 +83,16 @@ export interface JobApplication {
   status: "SUBMITTED" | "REVIEWED" | "INTERVIEWING" | "ACCEPTED" | "REJECTED";
   createdAt: string;
 }
+
+export interface JobAlert {
+  id: string;
+  phone: string;
+  name?: string;
+  categories: string[];
+  locations?: string[];
+  neighborhood?: string;
+  minPay?: number;
+  active: boolean;
+  createdAt: string;
+}
+

@@ -252,7 +252,7 @@ export default function DailyJobsPage() {
 
             {formSuccess ? (
               <div className="text-center py-8 space-y-3">
-                <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto animate-bounce" />
+                <CheckCircle className="w-16 h-16 text-brand-blue mx-auto animate-bounce" />
                 <h4 className="text-lg font-bold text-slate-900">Daily Gig Published!</h4>
                 <p className="text-xs text-slate-500">Your urgent listing is now live for job seekers.</p>
               </div>

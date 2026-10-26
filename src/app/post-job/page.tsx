@@ -204,7 +204,7 @@ export default function PostJobPage() {
         {/* Section 2: Compensation */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-5">
           <h2 className="text-lg font-bold text-slate-900 flex items-center space-x-2 border-b border-slate-100 pb-3">
-            <DollarSign className="w-5 h-5 text-emerald-600" />
+            <DollarSign className="w-5 h-5 text-brand-blue" />
             <span>2. Compensation</span>
           </h2>
 
@@ -349,15 +349,15 @@ export default function PostJobPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-300">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCircle className="w-4 h-4 text-blue-400 shrink-0" />
               <span>Active for 30 Days</span>
             </div>
             <div className="flex items-center space-x-2">
-              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCircle className="w-4 h-4 text-blue-400 shrink-0" />
               <span>Direct Candidate Resumes</span>
             </div>
             <div className="flex items-center space-x-2">
-              <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Lock className="w-4 h-4 text-blue-400 shrink-0" />
               <span>Stripe 256-bit Encrypted</span>
             </div>
           </div>

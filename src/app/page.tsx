@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 
 interface JobItem {
@@ -186,6 +186,62 @@ const INITIAL_JOBS: JobItem[] = [
     type: "Full-time",
     age: "1d ago",
     desc: "Manage kitchen workflow, staff, ordering and production."
+  },
+  {
+    id: 13,
+    icon: "⚡",
+    title: "2 Waiters Needed for Bar Mitzvah Tonight",
+    company: "Heimish Catering Hall",
+    location: "Boro Park, Brooklyn",
+    country: "United States",
+    category: "Food Service",
+    pay: 35,
+    payText: "$35/hr · Cash at end of night",
+    type: "Same-Day / Short-term",
+    age: "15m ago",
+    desc: "Need 2 polite, reliable waiters for a Bar Mitzvah hall tonight. 5:30 PM - 11:30 PM. Instant cash payment at conclusion."
+  },
+  {
+    id: 14,
+    icon: "🚐",
+    title: "Urgent Airport Ride: Lakewood to JFK",
+    company: "Private Family",
+    location: "Lakewood, NJ",
+    country: "United States",
+    category: "Driving",
+    pay: 35,
+    payText: "$140 flat + tolls",
+    type: "Same-Day / Short-term",
+    age: "35m ago",
+    desc: "Need an immediate driver with a clean minivan or SUV for 4 passengers + luggage to JFK airport today at 3:30 PM."
+  },
+  {
+    id: 15,
+    icon: "⚡",
+    title: "Simcha Hall Table & Stage Setup Helper",
+    company: "Ateres Simcha Hall",
+    location: "Monsey, NY",
+    country: "United States",
+    category: "Other",
+    pay: 25,
+    payText: "$25/hr · Today 4:00 PM",
+    type: "Same-Day / Short-term",
+    age: "1h ago",
+    desc: "Help dress tables, arrange chairs, and setup stage layout for an event this evening. Approx 4-5 hours of work."
+  },
+  {
+    id: 16,
+    icon: "📦",
+    title: "Warehouse Container Unloading Rush",
+    company: "Commercial Importer",
+    location: "Crown Heights, Brooklyn",
+    country: "United States",
+    category: "Warehouse",
+    pay: 28,
+    payText: "$28/hr · Cash daily",
+    type: "Same-Day / Short-term",
+    age: "2h ago",
+    desc: "Looking for 3 strong helpers to unload incoming containers of housewares today starting at 1:00 PM. Same-day cash pay."
   }
 ];
 
@@ -247,6 +303,55 @@ export default function HomePage() {
   const [employerGateOpen, setEmployerGateOpen] = useState(false);
   const [showBackToStart, setShowBackToStart] = useState(false);
 
+  // SMS Job Alerts Modal State
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertPhone, setAlertPhone] = useState("");
+  const [alertName, setAlertName] = useState("");
+  const [alertCategories, setAlertCategories] = useState<string[]>([]);
+  const [alertLocation, setAlertLocation] = useState("");
+  const [alertMinPay, setAlertMinPay] = useState("0");
+  const [alertSubmitting, setAlertSubmitting] = useState(false);
+  const [alertSuccess, setAlertSuccess] = useState(false);
+  const [alertError, setAlertError] = useState("");
+  const [alertIsSimulated, setAlertIsSimulated] = useState(true);
+ 
+  const dismissEntryGate = (hash = "#jobs") => {
+    setEntryGateOpen(false);
+    setShowBackToStart(true);
+    try {
+      sessionStorage.setItem("yidmatch_entry_dismissed", "1");
+      localStorage.setItem("yidmatch_entry_dismissed", "1");
+      if (typeof window !== "undefined" && hash) {
+        history.replaceState(null, "", hash);
+      }
+    } catch (_) {}
+  };
+
+  // Restore dismissed state on refresh so the user stays on the jobs page
+  useEffect(() => {
+    try {
+      const isDismissed =
+        sessionStorage.getItem("yidmatch_entry_dismissed") === "1" ||
+        localStorage.getItem("yidmatch_entry_dismissed") === "1" ||
+        (typeof window !== "undefined" && window.location.hash.toLowerCase().includes("job"));
+      if (isDismissed) {
+        setEntryGateOpen(false);
+        setShowBackToStart(true);
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (entryGateOpen || profileGateOpen || employerGateOpen || alertModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [entryGateOpen, profileGateOpen, employerGateOpen, alertModalOpen]);
+
   // Profile Gate State
   const [profileStep, setProfileStep] = useState(1);
   const [profileGender, setProfileGender] = useState("");
@@ -257,6 +362,8 @@ export default function HomePage() {
   const [profileInterests, setProfileInterests] = useState<string[]>([]);
   const [profileSchedule, setProfileSchedule] = useState("");
   const [profileMinPay, setProfileMinPay] = useState("0");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileSmsAlerts, setProfileSmsAlerts] = useState(true);
   const [interestSearchQuery, setInterestSearchQuery] = useState("");
   const [profileSummary, setProfileSummary] = useState<{ show: boolean; text: string }>({
     show: false,
@@ -359,15 +466,24 @@ export default function HomePage() {
     }${empPayType === "Base + commission" ? " + commission" : ""}`;
   };
 
-  // Role Gate Actions
   const handleChooseJobSeeker = () => {
-    setEntryGateOpen(false);
+    dismissEntryGate("#jobs");
     setProfileGateOpen(true);
     setProfileStep(1);
   };
 
+  const handleChooseSameDay = () => {
+    dismissEntryGate("#jobs");
+    setTypeFilter("Same-Day / Short-term");
+    setQuickCat("");
+    showToast("Showing same-day and short-term daily gigs.");
+    setTimeout(() => {
+      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
   const handleChooseHiring = () => {
-    setEntryGateOpen(false);
+    dismissEntryGate("#jobs");
     setProfileGateOpen(false);
     setEmployerGateOpen(true);
     setEmployerStep(1);
@@ -376,12 +492,18 @@ export default function HomePage() {
   };
 
   const handleEntrySignIn = () => {
-    setEntryGateOpen(false);
-    setShowBackToStart(true);
+    dismissEntryGate("#jobs");
     showToast("Sign-in flow would open here.");
   };
 
   const handleBackToStart = () => {
+    try {
+      sessionStorage.removeItem("yidmatch_entry_dismissed");
+      localStorage.removeItem("yidmatch_entry_dismissed");
+      if (typeof window !== "undefined") {
+        history.replaceState(null, "", window.location.pathname);
+      }
+    } catch (_) {}
     setProfileGateOpen(false);
     setEmployerGateOpen(false);
     setEntryGateOpen(true);
@@ -413,6 +535,31 @@ export default function HomePage() {
     if (profileSchedule) setTypeFilter(profileSchedule);
     if (profileInterests.length === 1) setCategoryFilter(profileInterests[0]);
 
+    // If seeker entered a phone number and opted in for SMS alerts, subscribe them!
+    const cleanPhone = profilePhone.trim().replace(/\D/g, "");
+    if (cleanPhone.length >= 7 && profileSmsAlerts) {
+      fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: profilePhone,
+          name: profileStage || "Job Seeker",
+          categories: profileInterests,
+          locations: [profileLocation, profileCountry].filter(Boolean),
+          neighborhood: profileLocation,
+          minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
+          sendWelcomeSms: true,
+        }),
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast("✓ SMS Job Alerts activated! Confirmation text sent.");
+        }
+      })
+      .catch(err => console.error("Error subscribing to alerts:", err));
+    }
+
     const summaryParts = [
       profileStage || "Job seeker",
       profileAge ? `age ${profileAge}` : "",
@@ -435,6 +582,52 @@ export default function HomePage() {
     setProfileInterests(prev =>
       prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
     );
+  };
+
+  // SMS Alert Modal Handlers
+  const toggleAlertCategory = (cat: string) => {
+    setAlertCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const handleSubmitAlertModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAlertError("");
+    const clean = alertPhone.trim().replace(/\D/g, "");
+    if (!clean || clean.length < 7 || clean.length > 15) {
+      setAlertError("Please enter a valid phone number (at least 7 digits, e.g. 732-555-0199 or international format).");
+      return;
+    }
+
+    setAlertSubmitting(true);
+    try {
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: alertPhone,
+          name: alertName,
+          categories: alertCategories.length > 0 ? alertCategories : [],
+          locations: alertLocation ? [alertLocation] : [],
+          neighborhood: alertLocation,
+          minPay: alertMinPay !== "0" ? Number(alertMinPay) : undefined,
+          sendWelcomeSms: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAlertIsSimulated(Boolean(data.welcomeSms?.simulated));
+        setAlertSuccess(true);
+        showToast("✓ SMS Alert activated!");
+      } else {
+        setAlertError(data.error || "Could not register alert. Please try again.");
+      }
+    } catch {
+      setAlertError("Failed to connect to server. Please check your connection and try again.");
+    } finally {
+      setAlertSubmitting(false);
+    }
   };
 
   // Employer Step Actions
@@ -518,6 +711,22 @@ export default function HomePage() {
     };
     setJobsList(prev => [newJob, ...prev]);
 
+    // Dispatch matching SMS job alerts immediately
+    fetch("/api/alerts/notify-match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job: newJob }),
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.matchedCount > 0) {
+        setTimeout(() => {
+          showToast(`⚡ Dispatched SMS job alerts to ${res.matchedCount} matching candidate${res.matchedCount > 1 ? "s" : ""}!`);
+        }, 1200);
+      }
+    })
+    .catch(err => console.error("Error dispatching matching alerts:", err));
+
     setTimeout(() => {
       setEmployerGateOpen(false);
       setShowBackToStart(true);
@@ -555,7 +764,82 @@ export default function HomePage() {
     setCountryFilter("");
     setPayFilter("0");
     setTypeFilter("");
+    setCurrentPage(1);
   };
+
+  // Pagination State & Helpers
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
+
+  // Reset to page 1 whenever any search or filter criteria changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchInput, locationSearch, quickCat, categoryFilter, countryFilter, payFilter, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / ITEMS_PER_PAGE));
+
+  const paginatedJobs = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredJobs.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredJobs, currentPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setCurrentPage(newPage);
+    const target = document.querySelector("#jobsList") || document.querySelector("#jobs");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const renderPagination = (position: "top" | "bottom") => {
+    if (filteredJobs.length === 0) return null;
+
+    return (
+      <div className={`pagination-bar pagination-${position}`}>
+        <div className="pagination-info">
+          Showing <b>{Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredJobs.length)}</b>–<b>{Math.min(currentPage * ITEMS_PER_PAGE, filteredJobs.length)}</b> of <b>{filteredJobs.length}</b> jobs
+        </div>
+        <div className="pagination-controls">
+          <button
+            type="button"
+            className="pagination-btn pagination-arrow"
+            disabled={currentPage <= 1}
+            onClick={() => handlePageChange(currentPage - 1)}
+            aria-label="Previous Page"
+          >
+            ← Previous
+          </button>
+
+          <div className="pagination-numbers">
+            {Array.from({ length: totalPages }, (_, idx) => idx + 1).map(pageNum => (
+              <button
+                key={pageNum}
+                type="button"
+                className={`pagination-num ${currentPage === pageNum ? "active" : ""}`}
+                onClick={() => handlePageChange(pageNum)}
+                aria-label={`Page ${pageNum}`}
+                aria-current={currentPage === pageNum ? "page" : undefined}
+              >
+                {pageNum}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="pagination-btn pagination-arrow"
+            disabled={currentPage >= totalPages}
+            onClick={() => handlePageChange(currentPage + 1)}
+            aria-label="Next Page"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    );
+  };
+
 
 
   return (
@@ -569,20 +853,22 @@ export default function HomePage() {
         aria-labelledby="entryTitle"
       >
         <div className="entry-wrap">
-          <div className="entry-brand" style={{ display: "inline-flex", alignItems: "center", marginBottom: "28px" }}>
+          <div className="entry-brand" style={{ display: "inline-flex", alignItems: "center", marginBottom: "26px" }}>
             <Image
               src="/logo.png"
               alt="YidMatch"
-              width={240}
-              height={80}
-              style={{ height: "64px", width: "auto", objectFit: "contain", borderRadius: "14px", boxShadow: "0 6px 20px rgba(7, 28, 53, 0.16)" }}
+              width={380}
+              height={125}
+              style={{
+                height: "115px",
+                width: "auto",
+                maxHeight: "130px",
+                objectFit: "contain",
+                borderRadius: "18px",
+                boxShadow: "0 12px 38px rgba(7, 28, 53, 0.35)",
+              }}
               priority
             />
-          </div>
-          <div>
-            <span className="entry-kicker">
-              <span className="dot"></span>Welcome
-            </span>
           </div>
           <h1 className="entry-title" id="entryTitle">
             What are you here for today?
@@ -602,6 +888,20 @@ export default function HomePage() {
                 <span className="role-label">Job Seeking</span>
                 <h2>I&apos;m Looking for a Job</h2>
                 <p>Browse approved jobs, save your preferences, apply, and message employers.</p>
+              </span>
+              <span className="role-arrow">→</span>
+            </button>
+            <button
+              type="button"
+              className="role-card"
+              id="chooseSameDay"
+              onClick={handleChooseSameDay}
+            >
+              <span className="role-icon">⚡</span>
+              <span className="role-copy">
+                <span className="role-label">Urgent & Gigs</span>
+                <h2>Same-Day / Short-Term</h2>
+                <p>Find immediate work, daily gigs, simcha setups, urgent drivers, and same-day pay.</p>
               </span>
               <span className="role-arrow">→</span>
             </button>
@@ -820,6 +1120,38 @@ export default function HomePage() {
                     </select>
                   </div>
                 </div>
+
+                {/* Instant SMS Job Alert Opt-in */}
+                <div style={{ marginTop: "18px", padding: "16px", borderRadius: "14px", background: "rgba(30, 114, 200, 0.05)", border: "1px solid rgba(30, 114, 200, 0.18)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", color: "#092040", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "18px" }}>📱</span>
+                    <span>Get Instant SMS Job Alerts (Optional)</span>
+                  </div>
+                  <p style={{ fontSize: "13px", color: "#546a7b", margin: "0 0 10px", lineHeight: "1.4" }}>
+                    Be the first to hear about new jobs matching your interests. We will text you the second one is posted!
+                  </p>
+                  <div className="field" style={{ marginBottom: "8px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155" }}>Your Mobile Number</label>
+                    <input
+                      id="profilePhone"
+                      type="tel"
+                      placeholder="(732) 555-0199"
+                      value={profilePhone}
+                      onChange={e => setProfilePhone(e.target.value)}
+                      style={{ background: "#fff", fontSize: "15px" }}
+                    />
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#334155", cursor: "pointer", marginTop: "6px" }}>
+                    <input
+                      type="checkbox"
+                      checked={profileSmsAlerts}
+                      onChange={e => setProfileSmsAlerts(e.target.checked)}
+                      style={{ width: "16px", height: "16px", accentColor: "#1e72c8" }}
+                    />
+                    <span>Text me when new matching jobs are published</span>
+                  </label>
+                </div>
+
                 <div className="profile-actions">
                   <button
                     type="button"
@@ -1903,14 +2235,26 @@ export default function HomePage() {
             <Image
               src="/logo.png"
               alt="YidMatch"
-              width={160}
-              height={52}
-              style={{ height: "42px", width: "auto", objectFit: "contain", borderRadius: "9px" }}
+              width={180}
+              height={60}
+              style={{ height: "48px", width: "auto", objectFit: "contain", borderRadius: "10px" }}
               priority
             />
           </a>
           <nav className="navlinks">
             <a className="navlink active" href="#jobs">Find Jobs</a>
+            <button
+              type="button"
+              className="navlink"
+              id="topbarAlertsBtn"
+              onClick={() => {
+                setAlertError("");
+                setAlertSuccess(false);
+                setAlertModalOpen(true);
+              }}
+            >
+              🔔 Job Alerts
+            </button>
             <button
               type="button"
               className="navlink"
@@ -1940,108 +2284,7 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main id="home">
-        {/* Hero Section */}
-        <section className="hero">
-          <div className="shell hero-grid">
-            <div>
-              <span className="eyebrow">
-                <span className="dot"></span>Built for our community
-              </span>
-              <h1>
-                Find the right job. <span className="accent">Hire the right person.</span>
-              </h1>
-              <p className="lead">
-                A simple, trusted job platform for the heimishe community — with team-reviewed listings, easy applications, private messaging and optional SMS for basic phones.
-              </p>
-              <div className="hero-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => {
-                    document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                >
-                  Find a Job
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={handleChooseHiring}
-                >
-                  I&apos;m Hiring
-                </button>
-              </div>
-              <div className="hero-note">
-                <span><i className="check">✓</i>Free for job seekers</span>
-                <span><i className="check">✓</i>Listings reviewed before publishing</span>
-                <span><i className="check">✓</i>English + Yiddish ready</span>
-              </div>
-            </div>
-            <div className="phone-card" aria-label="Mobile app preview">
-              <div className="phone-screen">
-                <div className="phone-head">
-                  <div className="mini-brand" style={{ display: "inline-flex", alignItems: "center" }}>
-                    <Image
-                      src="/logo.png"
-                      alt="YidMatch"
-                      width={100}
-                      height={34}
-                      style={{ height: "24px", width: "auto", objectFit: "contain", borderRadius: "5px" }}
-                    />
-                  </div>
-                  <div className="mini-title">Find work that fits you.</div>
-                  <div className="search">🔎 Search HVAC, driver, office...</div>
-                  <div className="chips">
-                    <span className="chip">📍 Location</span>
-                    <span className="chip">💵 Pay</span>
-                    <span className="chip">🕒 Schedule</span>
-                  </div>
-                </div>
-                <div className="phone-body">
-                  <div className="job-mini">
-                    <div className="job-icon">🛠️</div>
-                    <div>
-                      <h4>HVAC Installer / Technician</h4>
-                      <p>Established Contractor · Lakewood</p>
-                    </div>
-                    <div className="pay">$28–40/hr</div>
-                  </div>
-                  <div className="job-mini">
-                    <div className="job-icon">📈</div>
-                    <div>
-                      <h4>Sales Representative</h4>
-                      <p>Growing Company · Brooklyn</p>
-                    </div>
-                    <div className="pay">$30+/hr</div>
-                  </div>
-                  <div className="job-mini">
-                    <div className="job-icon">🧾</div>
-                    <div>
-                      <h4>Bookkeeper</h4>
-                      <p>Business Office · Monsey</p>
-                    </div>
-                    <div className="pay">$25–32/hr</div>
-                  </div>
-                  <div className="job-mini">
-                    <div className="job-icon">💻</div>
-                    <div>
-                      <h4>Junior IT Support</h4>
-                      <p>Office · Lakewood</p>
-                    </div>
-                    <div className="pay">$25–32/hr</div>
-                  </div>
-                </div>
-                <div className="phone-footer">
-                  <span className="on">⌂<br />Home</span>
-                  <span>▣<br />Jobs</span>
-                  <span>＋<br />Post</span>
-                  <span>✉<br />Messages</span>
-                  <span>◉<br />Profile</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+
 
         {/* Jobs Search & Listings Section */}
         <section className="section" id="jobs">
@@ -2056,7 +2299,11 @@ export default function HomePage() {
               <button
                 type="button"
                 className="btn btn-light"
-                onClick={() => showToast("Job alert saved — prototype demo.")}
+                id="createJobAlertBtn"
+                onClick={() => {
+                  setAlertSuccess(false);
+                  setAlertModalOpen(true);
+                }}
               >
                 🔔 Create Job Alert
               </button>
@@ -2113,13 +2360,24 @@ export default function HomePage() {
               <div className="dashboard-subrow">
                 <button
                   type="button"
-                  className={`filter-btn ${quickCat === "" && categoryFilter === "" ? "active" : ""}`}
+                  className={`filter-btn ${quickCat === "" && categoryFilter === "" && typeFilter === "" ? "active" : ""}`}
                   onClick={() => {
                     setQuickCat("");
                     setCategoryFilter("");
+                    setTypeFilter("");
                   }}
                 >
                   All Jobs
+                </button>
+                <button
+                  type="button"
+                  className={`filter-btn ${typeFilter === "Same-Day / Short-term" ? "active" : ""}`}
+                  onClick={() => {
+                    setTypeFilter(typeFilter === "Same-Day / Short-term" ? "" : "Same-Day / Short-term");
+                    setQuickCat("");
+                  }}
+                >
+                  ⚡ Same-Day Gigs
                 </button>
                 {["Accounting", "Sales", "HVAC", "Driving", "IT"].map(cat => (
                   <button
@@ -2201,6 +2459,7 @@ export default function HomePage() {
                     onChange={e => setTypeFilter(e.target.value)}
                   >
                     <option value="">Any schedule</option>
+                    <option value="Same-Day / Short-term">⚡ Same-Day / Short-term</option>
                     <option>Full-time</option>
                     <option>Part-time</option>
                     <option>Evenings</option>
@@ -2242,11 +2501,13 @@ export default function HomePage() {
                   </div>
                 )}
 
+                {/* Top Pagination */}
+                {renderPagination("top")}
+
                 <div className="jobs-list" id="jobsList">
-                  {filteredJobs.length > 0 ? (
-                    filteredJobs.map(j => (
+                  {paginatedJobs.length > 0 ? (
+                    paginatedJobs.map(j => (
                       <article key={j.id} className="panel job-card" data-id={j.id}>
-                        <div className="big-icon">{j.icon}</div>
                         <div>
                           <h3>{j.title}</h3>
                           <div className="meta">
@@ -2280,6 +2541,9 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
+
+                {/* Bottom Pagination */}
+                {renderPagination("bottom")}
               </div>
             </div>
           </div>
@@ -2329,7 +2593,7 @@ export default function HomePage() {
               </button>
             </div>
             <div className="modal-body" id="modalBody">
-              <h3>{selectedJob.icon} {selectedJob.title}</h3>
+              <h3>{selectedJob.title}</h3>
               <div style={{ color: "#6e8086" }}>
                 {selectedJob.company} · {selectedJob.location}
               </div>
@@ -2374,6 +2638,181 @@ export default function HomePage() {
                   Save Job
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Instant SMS Job Alert Modal */}
+      {alertModalOpen && (
+        <div
+          className="modal open"
+          id="jobAlertModal"
+          onClick={e => {
+            if ((e.target as HTMLElement).id === "jobAlertModal") setAlertModalOpen(false);
+          }}
+        >
+          <div className="modal-box" style={{ maxWidth: "560px" }}>
+            <div className="modal-head">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "24px" }}>🔔</span>
+                <div>
+                  <strong style={{ fontSize: "18px", color: "#092040" }}>Instant SMS Job Alerts</strong>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>Get texted the second matching jobs are posted</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="close"
+                id="closeAlertModal"
+                onClick={() => setAlertModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {alertSuccess ? (
+                <div style={{ textAlign: "center", padding: "24px 12px" }}>
+                  <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "rgba(30, 114, 200, 0.12)", color: "#1e72c8", fontSize: "32px", display: "grid", placeItems: "center", margin: "0 auto 16px" }}>
+                    ✓
+                  </div>
+                  <h3 style={{ fontSize: "22px", color: "#092040", marginBottom: "8px" }}>Alerts Activated!</h3>
+                  <p style={{ color: "#475569", lineHeight: "1.5", fontSize: "15px", maxWidth: "420px", margin: "0 auto 16px" }}>
+                    We have registered <b>{alertPhone}</b>. You will receive an instant text notification whenever a matching job is published!
+                  </p>
+
+                  {alertIsSimulated && (
+                    <div style={{ margin: "18px 0 24px", padding: "14px 16px", background: "#f0f7ff", borderRadius: "12px", border: "1px solid #bfdbfe", textAlign: "left", fontSize: "13px", color: "#1e3a8a" }}>
+                      <div style={{ fontWeight: "700", display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                        <span>📱</span>
+                        <span>Twilio Credentials Pending (Simulation Mode)</span>
+                      </div>
+                      <p style={{ margin: 0, color: "#334155", lineHeight: "1.45" }}>
+                        Your alert subscription is active in the database! Because Twilio API keys haven&apos;t been provided yet, simulated SMS messages are logged to the server terminal. Once you add <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: "4px" }}>TWILIO_ACCOUNT_SID</code> and <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: "4px" }}>TWILIO_AUTH_TOKEN</code> to <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: "4px" }}>.env.local</code>, real text messages will deliver directly to your phone.
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ minWidth: "160px" }}
+                    onClick={() => setAlertModalOpen(false)}
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitAlertModal}>
+                  {alertError && (
+                    <div style={{ color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", padding: "10px 14px", borderRadius: "10px", marginBottom: "16px", fontWeight: "600", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span>⚠️</span>
+                      <span>{alertError}</span>
+                    </div>
+                  )}
+
+                  <div className="field" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#092040" }}>
+                      Cell Phone Number <span className="required-star">*</span>
+                    </label>
+                    <input
+                      id="alertPhoneInput"
+                      type="tel"
+                      required
+                      placeholder="(732) 555-0199"
+                      value={alertPhone}
+                      onChange={e => {
+                        setAlertPhone(e.target.value);
+                        if (alertError) setAlertError("");
+                      }}
+                      style={{ fontSize: "16px", padding: "12px 14px" }}
+                    />
+                    <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                      We only send SMS for jobs that match your preferences. Reply STOP anytime.
+                    </div>
+                  </div>
+
+                  <div className="field" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#092040" }}>
+                      Your Name (Optional)
+                    </label>
+                    <input
+                      id="alertNameInput"
+                      type="text"
+                      placeholder="e.g. Yossi or Rivka"
+                      value={alertName}
+                      onChange={e => setAlertName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#092040" }}>
+                      Job Categories (Select any or all)
+                    </label>
+                    <div className="choice-grid" style={{ maxHeight: "160px", overflowY: "auto", padding: "4px" }}>
+                      {INTEREST_OPTIONS.map(item => {
+                        const isSelected = alertCategories.includes(item.value);
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            className={`choice ${isSelected ? "selected" : ""}`}
+                            onClick={() => toggleAlertCategory(item.value)}
+                          >
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="form-grid" style={{ marginBottom: "16px" }}>
+                    <div className="field">
+                      <label style={{ fontWeight: "700", color: "#092040" }}>Preferred Location</label>
+                      <input
+                        id="alertLocationInput"
+                        placeholder="e.g. Lakewood, Boro Park, Monsey"
+                        value={alertLocation}
+                        onChange={e => setAlertLocation(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label style={{ fontWeight: "700", color: "#092040" }}>Minimum Pay</label>
+                      <select
+                        id="alertMinPayInput"
+                        value={alertMinPay}
+                        onChange={e => setAlertMinPay(e.target.value)}
+                      >
+                        <option value="0">Any Pay</option>
+                        <option value="20">$20+/hr</option>
+                        <option value="25">$25+/hr</option>
+                        <option value="30">$30+/hr</option>
+                        <option value="35">$35+/hr</option>
+                        <option value="40">$40+/hr</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="modal-actions" style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
+                    <button
+                      type="button"
+                      className="btn btn-light"
+                      onClick={() => setAlertModalOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      id="submitAlertModalBtn"
+                      className="btn btn-primary"
+                      disabled={alertSubmitting}
+                      style={{ minWidth: "190px" }}
+                    >
+                      {alertSubmitting ? "Activating..." : "🔔 Turn On SMS Alerts"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>

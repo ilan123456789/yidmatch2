@@ -43,7 +43,7 @@ export default function SeekerApplicationsPage() {
   const getStatusBadge = (status: JobApplication["status"]) => {
     switch (status) {
       case "ACCEPTED":
-        return <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">Hired / Accepted</span>;
+        return <span className="bg-blue-100 text-brand-navy text-xs font-bold px-2.5 py-1 rounded-full">Hired / Accepted</span>;
       case "INTERVIEWING":
         return <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-1 rounded-full">Interviewing</span>;
       case "REVIEWED":

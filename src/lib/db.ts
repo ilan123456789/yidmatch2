@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { Job, DailyJob, JobApplication, UserProfile } from "@/types";
+import { Job, DailyJob, JobApplication, UserProfile, JobAlert } from "@/types";
 import { SEED_JOBS, SEED_DAILY_JOBS } from "./seed-data";
 import { getFirebaseAdmin } from "./firebase/admin";
 
@@ -9,6 +9,7 @@ interface DatabaseSchema {
   jobs: Job[];
   dailyJobs: DailyJob[];
   applications: JobApplication[];
+  jobAlerts: JobAlert[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -59,6 +60,30 @@ function getSeedDatabase(): DatabaseSchema {
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
       },
     ],
+    jobAlerts: [
+      {
+        id: "alert-1",
+        phone: "(732) 555-0199",
+        name: "Dovid B.",
+        categories: ["HVAC", "Plumbing", "Construction & Trades"],
+        locations: ["Lakewood", "Monsey"],
+        neighborhood: "Lakewood, NJ",
+        minPay: 25,
+        active: true,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: "alert-2",
+        phone: "(718) 555-0144",
+        name: "Mendy K.",
+        categories: ["Accounting & Finance", "Administration & Office"],
+        locations: ["Boro Park", "Brooklyn", "Flatbush"],
+        neighborhood: "Boro Park, NY",
+        minPay: 22,
+        active: true,
+        createdAt: new Date().toISOString(),
+      },
+    ],
   };
 }
 
@@ -73,6 +98,9 @@ function getLocalDb(): DatabaseSchema {
       if (fs.existsSync(DATA_FILE)) {
         const content = fs.readFileSync(DATA_FILE, "utf-8");
         memoryDb = JSON.parse(content);
+        if (memoryDb && !memoryDb.jobAlerts) {
+          memoryDb.jobAlerts = getSeedDatabase().jobAlerts;
+        }
         return memoryDb!;
       }
 
@@ -349,3 +377,124 @@ export async function saveUser(user: UserProfile): Promise<UserProfile> {
   saveLocalDb(db);
   return user;
 }
+
+/* ==================== JOB ALERTS ==================== */
+
+export async function getJobAlerts(): Promise<JobAlert[]> {
+  const admin = getFirebaseAdmin();
+  if (admin) {
+    try {
+      const snap = await admin.adminDb.collection("jobAlerts").where("active", "==", true).get();
+      if (!snap.empty) {
+        return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as JobAlert));
+      }
+    } catch (e) {
+      console.warn("Firestore getJobAlerts fallback:", e);
+    }
+  }
+
+  const db = getLocalDb();
+  return (db.jobAlerts || []).filter((a) => a.active);
+}
+
+export async function createJobAlert(alertData: Omit<JobAlert, "id" | "createdAt" | "active"> & { active?: boolean }): Promise<JobAlert> {
+  const id = "alert-" + Math.random().toString(36).substring(2, 10);
+  const newAlert: JobAlert = {
+    id,
+    phone: alertData.phone,
+    name: alertData.name || "",
+    categories: alertData.categories || [],
+    locations: alertData.locations || (alertData.neighborhood ? [alertData.neighborhood] : []),
+    neighborhood: alertData.neighborhood || "",
+    minPay: alertData.minPay,
+    active: alertData.active !== undefined ? alertData.active : true,
+    createdAt: new Date().toISOString(),
+  };
+
+  const admin = getFirebaseAdmin();
+  if (admin) {
+    try {
+      await admin.adminDb.collection("jobAlerts").doc(id).set(newAlert);
+    } catch (e) {
+      console.warn("Firestore createJobAlert fallback:", e);
+    }
+  }
+
+  const db = getLocalDb();
+  if (!db.jobAlerts) db.jobAlerts = [];
+  
+  // If phone already subscribed, update preferences or add new
+  const cleanNewPhone = newAlert.phone.replace(/\D/g, "");
+  const existingIdx = db.jobAlerts.findIndex(
+    (a) => a.phone.replace(/\D/g, "") === cleanNewPhone
+  );
+
+  if (existingIdx !== -1) {
+    db.jobAlerts[existingIdx] = {
+      ...db.jobAlerts[existingIdx],
+      ...newAlert,
+      id: db.jobAlerts[existingIdx].id,
+    };
+    saveLocalDb(db);
+    return db.jobAlerts[existingIdx];
+  } else {
+    db.jobAlerts.unshift(newAlert);
+    saveLocalDb(db);
+    return newAlert;
+  }
+}
+
+export async function findMatchingAlerts(job: {
+  title: string;
+  category?: string;
+  location?: string;
+  neighborhood?: string;
+  pay?: number;
+  salaryMin?: number;
+}): Promise<JobAlert[]> {
+  const alerts = await getJobAlerts();
+  const jobCategory = (job.category || "").toLowerCase();
+  const jobTitle = (job.title || "").toLowerCase();
+  const jobLoc = `${job.location || ""} ${job.neighborhood || ""}`.toLowerCase();
+  const jobPay = job.pay || job.salaryMin || 0;
+
+  return alerts.filter((alert) => {
+    if (!alert.active) return false;
+
+    // 1. Min pay check
+    if (alert.minPay && alert.minPay > 0 && jobPay > 0 && jobPay < alert.minPay) {
+      return false;
+    }
+
+    // 2. Category / Title keyword check
+    if (alert.categories && alert.categories.length > 0) {
+      const hasCatMatch = alert.categories.some((c) => {
+        const cat = c.toLowerCase().trim();
+        if (!cat || cat === "all" || cat === "all categories" || cat === "any") return true;
+        return (
+          jobCategory.includes(cat) ||
+          jobTitle.includes(cat) ||
+          cat.split(" ").some((word) => word.length > 3 && (jobTitle.includes(word) || jobCategory.includes(word)))
+        );
+      });
+      if (!hasCatMatch) {
+        return false;
+      }
+    }
+
+    // 3. Location check
+    if (alert.locations && alert.locations.length > 0) {
+      const hasLocMatch = alert.locations.some((l) => {
+        const loc = l.toLowerCase().trim();
+        if (!loc || loc === "all" || loc === "any" || loc === "any location" || loc === "any country") return true;
+        return jobLoc.includes(loc) || loc.includes(jobLoc);
+      });
+      if (!hasLocMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+

@@ -120,7 +120,7 @@ export default function LoginPage() {
               onClick={() => handleDemoLogin("SEEKER")}
               className="flex items-center justify-center space-x-1.5 p-2 bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:text-brand-blue transition"
             >
-              <User className="w-3.5 h-3.5 text-emerald-600" />
+              <User className="w-3.5 h-3.5 text-brand-blue" />
               <span>Seeker Demo</span>
             </button>
           </div>

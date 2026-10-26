@@ -375,5 +375,78 @@
       "status": "REVIEWED",
       "createdAt": "2026-10-23T08:13:57.267Z"
     }
+  ],
+  "jobAlerts": [
+    {
+      "id": "alert-4vjkxb8y",
+      "phone": "+17325550188",
+      "name": "Moishe",
+      "categories": [
+        "HVAC",
+        "Plumbing"
+      ],
+      "locations": [
+        "Lakewood"
+      ],
+      "neighborhood": "Lakewood",
+      "active": true,
+      "createdAt": "2026-10-26T15:36:18.468Z"
+    },
+    {
+      "id": "alert-dwlc5rpe",
+      "phone": "+19024490799",
+      "name": "Job Seeker",
+      "categories": [],
+      "locations": [],
+      "neighborhood": "",
+      "active": true,
+      "createdAt": "2026-10-26T15:34:42.431Z"
+    },
+    {
+      "id": "alert-r0mr12yh",
+      "phone": "+17325550199",
+      "name": "",
+      "categories": [],
+      "locations": [],
+      "neighborhood": "",
+      "active": true,
+      "createdAt": "2026-10-26T16:27:36.064Z"
+    },
+    {
+      "id": "alert-1",
+      "phone": "(732) 555-0199",
+      "name": "Dovid B.",
+      "categories": [
+        "HVAC",
+        "Plumbing",
+        "Construction & Trades"
+      ],
+      "locations": [
+        "Lakewood",
+        "Monsey"
+      ],
+      "neighborhood": "Lakewood, NJ",
+      "minPay": 25,
+      "active": true,
+      "createdAt": "2026-10-26T15:34:09.120Z"
+    },
+    {
+      "id": "alert-2",
+      "phone": "(718) 555-0144",
+      "name": "Mendy K.",
+      "categories": [
+        "Accounting & Finance",
+        "Administration & Office"
+      ],
+      "locations": [
+        "Boro Park",
+        "Brooklyn",
+        "Flatbush"
+      ],
+      "neighborhood": "Boro Park, NY",
+      "minPay": 22,
+      "active": true,
+      "createdAt": "2026-10-26T15:34:09.120Z"
+    }
   ]
 }

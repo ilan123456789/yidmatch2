@@ -174,8 +174,8 @@ export default function JobDetailPage() {
             {/* Badges */}
             <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
               {job.salaryDisplay && (
-                <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 font-bold text-sm">
-                  <DollarSign className="w-4 h-4 text-emerald-600 -mr-1" />
+                <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-brand-navy border border-blue-200 font-bold text-sm">
+                  <DollarSign className="w-4 h-4 text-brand-blue -mr-1" />
                   <span>{job.salaryDisplay}</span>
                 </div>
               )}
@@ -281,7 +281,7 @@ export default function JobDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span>Compensation:</span>
-                <span className="font-semibold text-emerald-700">{job.salaryDisplay || "Competitive"}</span>
+                <span className="font-semibold text-brand-blue">{job.salaryDisplay || "Competitive"}</span>
               </div>
               <div className="flex justify-between">
                 <span>Shomer Shabbos:</span>
@@ -314,7 +314,7 @@ export default function JobDetailPage() {
 
             {applySuccess ? (
               <div className="text-center py-8 space-y-3">
-                <FileCheck className="w-16 h-16 text-emerald-500 mx-auto animate-bounce" />
+                <FileCheck className="w-16 h-16 text-brand-blue mx-auto animate-bounce" />
                 <h4 className="text-lg font-bold text-slate-900">Application Submitted!</h4>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
                   Your resume has been forwarded directly to {job.company}. You can track this application in your portal.
@@ -376,7 +376,7 @@ export default function JobDetailPage() {
                     <Upload className="w-8 h-8 text-brand-blue mx-auto mb-1" />
                     {resumeFile ? (
                       <div>
-                        <p className="text-xs font-bold text-emerald-700">{resumeFile.name}</p>
+                        <p className="text-xs font-bold text-brand-blue">{resumeFile.name}</p>
                         <p className="text-[10px] text-slate-500">{(resumeFile.size / 1024).toFixed(1)} KB • Click to replace</p>
                       </div>
                     ) : (

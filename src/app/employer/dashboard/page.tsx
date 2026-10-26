@@ -118,7 +118,7 @@ export default function EmployerDashboardPage() {
           href="/post-job"
           className="inline-flex items-center space-x-2 bg-brand-navy hover:bg-brand-blue text-white font-bold text-sm px-5 py-3 rounded-xl shadow-md transition shrink-0"
         >
-          <PlusCircle className="w-4 h-4 text-emerald-400" />
+          <PlusCircle className="w-4 h-4 text-blue-400" />
           <span>Post Another Job ($25)</span>
         </Link>
       </div>
@@ -167,7 +167,7 @@ export default function EmployerDashboardPage() {
                         <p className="text-xs text-slate-500">{job.location} • {job.jobType}</p>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        job.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                        job.status === "ACTIVE" ? "bg-blue-100 text-brand-navy" : "bg-amber-100 text-amber-800"
                       }`}>
                         {job.status}
                       </span>
@@ -191,7 +191,7 @@ export default function EmployerDashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-              <Users className="w-4 h-4 text-emerald-600" />
+              <Users className="w-4 h-4 text-brand-blue" />
               <span>
                 Applicants for: <span className="text-brand-blue">{selectedJob?.title || "Select a job"}</span>
               </span>
@@ -261,7 +261,7 @@ export default function EmployerDashboardPage() {
                             : app.status === "INTERVIEWING"
                             ? "bg-purple-50 text-purple-800 border-purple-200"
                             : app.status === "ACCEPTED"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            ? "bg-blue-50 text-brand-navy border-blue-200"
                             : "bg-slate-100 text-slate-600 border-slate-200"
                         }`}
                       >
