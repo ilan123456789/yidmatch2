@@ -97,11 +97,20 @@ function getLocalDb(): DatabaseSchema {
     if (typeof fs !== "undefined" && fs.existsSync && fs.readFileSync) {
       if (fs.existsSync(DATA_FILE)) {
         const content = fs.readFileSync(DATA_FILE, "utf-8");
-        memoryDb = JSON.parse(content);
-        if (memoryDb && !memoryDb.jobAlerts) {
-          memoryDb.jobAlerts = getSeedDatabase().jobAlerts;
+        if (content && content.trim()) {
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed && Array.isArray(parsed.jobs)) {
+              memoryDb = parsed;
+              if (!memoryDb!.jobAlerts) {
+                memoryDb!.jobAlerts = getSeedDatabase().jobAlerts;
+              }
+              return memoryDb!;
+            }
+          } catch (e) {
+            console.warn("yidmatch_db.json corrupted or incomplete, resetting to seed data:", e);
+          }
         }
-        return memoryDb!;
       }
 
       if (fs.mkdirSync && fs.writeFileSync) {

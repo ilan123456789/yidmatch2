@@ -78,12 +78,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Fetch profile from /api/auth/me or initialize profile
           try {
             const res = await fetch(`/api/auth/me?uid=${firebaseUser.uid}`);
+            let resUser: UserProfile | null = null;
             if (res.ok) {
-              const data = await res.json();
-              if (data.user) {
-                setUser(data.user);
-                localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
-              }
+              try {
+                const text = await res.text();
+                if (text && text.trim()) {
+                  const data = JSON.parse(text);
+                  if (data?.user) resUser = data.user;
+                }
+              } catch (_) {}
+            }
+            if (resUser) {
+              setUser(resUser);
+              localStorage.setItem("yidmatch_current_user", JSON.stringify(resUser));
             } else {
               const profile: UserProfile = {
                 uid: firebaseUser.uid,
@@ -113,11 +120,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (auth) {
       try {
         const cred = await signInWithEmailAndPassword(auth, email, pass);
-        const res = await fetch(`/api/auth/me?uid=${cred.user.uid}`);
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-          localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
+        let resUser: UserProfile | null = null;
+        try {
+          const res = await fetch(`/api/auth/me?uid=${cred.user.uid}`);
+          if (res.ok) {
+            const text = await res.text();
+            if (text && text.trim()) {
+              const data = JSON.parse(text);
+              if (data?.user) resUser = data.user;
+            }
+          }
+        } catch (_) {}
+
+        if (resUser) {
+          setUser(resUser);
+          localStorage.setItem("yidmatch_current_user", JSON.stringify(resUser));
           setLoading(false);
           return { success: true };
         } else {
@@ -146,12 +163,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: pass }),
       });
-      const data = await res.json();
-      if (res.ok && data.user) {
-        setUser(data.user);
-        localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
-        setLoading(false);
-        return { success: true };
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.trim()) {
+          const data = JSON.parse(text);
+          if (data?.user) {
+            setUser(data.user);
+            localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
+            setLoading(false);
+            return { success: true };
+          }
+        }
       }
     } catch (_) {}
 
@@ -194,16 +216,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, uid }),
-      });
+      let resUser: UserProfile | null = null;
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, uid }),
+        });
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.trim()) {
+            const resData = JSON.parse(text);
+            if (resData?.user) resUser = resData.user;
+          }
+        }
+      } catch (_) {}
 
-      const resData = await res.json();
-      if (res.ok && resData.user) {
-        setUser(resData.user);
-        localStorage.setItem("yidmatch_current_user", JSON.stringify(resData.user));
+      if (resUser) {
+        setUser(resUser);
+        localStorage.setItem("yidmatch_current_user", JSON.stringify(resUser));
         setLoading(false);
         return { success: true };
       } else {
