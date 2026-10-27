@@ -336,11 +336,145 @@ const INTEREST_OPTIONS = [
 ];
 
 export default function HomePage() {
+  const { user, login, signup, loginWithGoogle, resetPassword, logout } = useAuth();
+
   // Global & Gate Modals
   const [entryGateOpen, setEntryGateOpen] = useState(true);
   const [profileGateOpen, setProfileGateOpen] = useState(false);
   const [employerGateOpen, setEmployerGateOpen] = useState(false);
   const [showBackToStart, setShowBackToStart] = useState(false);
+
+  // Auth Modal State
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authTab, setAuthTab] = useState<"login" | "signup" | "forgot">("login");
+  const [authRole, setAuthRole] = useState<"SEEKER" | "EMPLOYER">("SEEKER");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [authCompany, setAuthCompany] = useState("");
+  const [authPhone, setAuthPhone] = useState("");
+  const [authLocation, setAuthLocation] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authSuccessMsg, setAuthSuccessMsg] = useState("");
+
+  const handleOpenAuth = (tab: "login" | "signup" | "forgot" = "login") => {
+    setAuthTab(tab);
+    setAuthError("");
+    setAuthSuccessMsg("");
+    setAuthModalOpen(true);
+  };
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    setAuthSuccessMsg("");
+    setAuthLoading(true);
+
+    try {
+      if (authTab === "login") {
+        if (!authEmail || !authPassword) {
+          setAuthError("Please enter your email and password.");
+          setAuthLoading(false);
+          return;
+        }
+        const res = await login(authEmail, authPassword);
+        if (!res.success) {
+          setAuthError(res.error || "Failed to sign in. Please check your credentials.");
+        } else {
+          showToast("Welcome back!");
+          setAuthModalOpen(false);
+          setEntryGateOpen(false);
+          setShowBackToStart(true);
+        }
+      } else if (authTab === "signup") {
+        if (!authEmail || !authPassword || !authName) {
+          setAuthError("Please fill in your name, email, and password.");
+          setAuthLoading(false);
+          return;
+        }
+        if (authPassword.length < 6) {
+          setAuthError("Password must be at least 6 characters.");
+          setAuthLoading(false);
+          return;
+        }
+        const res = await signup({
+          email: authEmail,
+          pass: authPassword,
+          name: authName,
+          role: authRole,
+          companyName: authRole === "EMPLOYER" ? authCompany : undefined,
+          phone: authPhone || undefined,
+          location: authLocation || undefined,
+        });
+        if (!res.success) {
+          setAuthError(res.error || "Failed to create account. Please try again.");
+        } else {
+          showToast(`Welcome to YidMatch, ${authName}!`);
+          setAuthModalOpen(false);
+          setEntryGateOpen(false);
+          setShowBackToStart(true);
+        }
+      } else if (authTab === "forgot") {
+        if (!authEmail) {
+          setAuthError("Please enter your email address.");
+          setAuthLoading(false);
+          return;
+        }
+        const res = await resetPassword(authEmail);
+        if (!res.success) {
+          setAuthError(res.error || "Could not send reset email. Please try again.");
+        } else {
+          setAuthSuccessMsg("Password reset email sent! Check your inbox.");
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err.message || "An unexpected error occurred.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const res = await loginWithGoogle(authRole);
+      if (res.success) {
+        showToast("Signed in with Google successfully!");
+        setAuthModalOpen(false);
+        setEntryGateOpen(false);
+        setShowBackToStart(true);
+      } else {
+        setAuthError(res.error || "Google sign-in was cancelled.");
+      }
+    } catch (err: any) {
+      setAuthError(err.message || "Failed to sign in with Google.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async (role: "SEEKER" | "EMPLOYER") => {
+    setAuthError("");
+    setAuthLoading(true);
+    const demoEmail = role === "EMPLOYER" ? "employer@yidmatch.com" : "seeker@yidmatch.com";
+    const res = await login(demoEmail, "demo123");
+    setAuthLoading(false);
+    if (res.success) {
+      showToast(`Logged in as Demo ${role === "EMPLOYER" ? "Employer" : "Job Seeker"}!`);
+      setAuthModalOpen(false);
+      setEntryGateOpen(false);
+      setShowBackToStart(true);
+    } else {
+      setAuthError(res.error || "Demo login error.");
+    }
+  };
+
+  const handleSignOut = async () => {
+    await logout();
+    showToast("Signed out successfully.");
+  };
 
   // SMS Job Alerts Modal State
   const [alertModalOpen, setAlertModalOpen] = useState(false);
@@ -386,7 +520,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (entryGateOpen || profileGateOpen || employerGateOpen || alertModalOpen || applyModalOpen || !!selectedJob) {
+    if (entryGateOpen || profileGateOpen || employerGateOpen || alertModalOpen || applyModalOpen || authModalOpen || !!selectedJob) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -394,7 +528,7 @@ export default function HomePage() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [entryGateOpen, profileGateOpen, employerGateOpen, alertModalOpen, applyModalOpen, selectedJob]);
+  }, [entryGateOpen, profileGateOpen, employerGateOpen, alertModalOpen, applyModalOpen, authModalOpen, selectedJob]);
 
   // Profile Gate State
   const [profileStep, setProfileStep] = useState(1);
@@ -470,9 +604,7 @@ export default function HomePage() {
 
   // Job Modal State (declared above)
 
-  // Auth Context
-  const { user } = useAuth();
-
+  // Auth Context (declared at top of HomePage)
   // Saved Jobs State
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
 
@@ -631,6 +763,7 @@ export default function HomePage() {
 
   const handleChooseBrowseAll = () => {
     dismissEntryGate("#jobs");
+    setProfileGateOpen(false);
     setTypeFilter("");
     setQuickCat("");
     setCategoryFilter("");
@@ -652,8 +785,7 @@ export default function HomePage() {
   };
 
   const handleEntrySignIn = () => {
-    dismissEntryGate("#jobs");
-    showToast("Sign-in flow would open here.");
+    handleOpenAuth("login");
   };
 
   const handleBackToStart = () => {
@@ -1013,21 +1145,13 @@ export default function HomePage() {
         aria-labelledby="entryTitle"
       >
         <div className="entry-wrap">
-          <div className="entry-brand" style={{ display: "inline-flex", alignItems: "center", marginBottom: "26px" }}>
+          <div className="entry-brand">
             <Image
               src="/logo.png"
               alt="YidMatch"
-              width={480}
-              height={160}
+              width={340}
+              height={110}
               className="entry-logo-img"
-              style={{
-                height: "145px",
-                width: "auto",
-                maxHeight: "165px",
-                objectFit: "contain",
-                borderRadius: "20px",
-                boxShadow: "0 14px 44px rgba(7, 28, 53, 0.40)",
-              }}
               priority
             />
           </div>
@@ -1063,20 +1187,6 @@ export default function HomePage() {
                 <span className="role-label">Urgent & Gigs</span>
                 <h2>Same-Day / Short-Term</h2>
                 <p>Find immediate work, daily gigs, simcha setups, urgent drivers, and same-day pay.</p>
-              </span>
-              <span className="role-arrow">→</span>
-            </button>
-            <button
-              type="button"
-              className="role-card browse-all-card"
-              id="chooseBrowseAll"
-              onClick={handleChooseBrowseAll}
-            >
-              <span className="role-icon">📋</span>
-              <span className="role-copy">
-                <span className="role-label">All Listings</span>
-                <h2>Browse All Jobs</h2>
-                <p>Directly explore all approved jobs without setting up preferences.</p>
               </span>
               <span className="role-arrow">→</span>
             </button>
@@ -1127,15 +1237,12 @@ export default function HomePage() {
             </button>
             <button
               type="button"
-              className="btn btn-light"
-              id="profileSkip"
-              onClick={() => {
-                setProfileGateOpen(false);
-                setShowBackToStart(true);
-              }}
-              style={{ fontSize: "13px", fontWeight: 700, padding: "8px 14px", borderRadius: "10px" }}
+              className="btn btn-secondary"
+              id="profileBrowseAll"
+              onClick={handleChooseBrowseAll}
+              style={{ fontSize: "13px", fontWeight: 700, padding: "8px 16px", borderRadius: "10px", display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
-              Skip &amp; Browse Jobs →
+              📋 Browse All Jobs Directly →
             </button>
             <div className="profile-progress">
               <span className={`progress-dot ${profileStep >= 1 ? "on" : ""}`} id="pd1"></span>
@@ -1152,6 +1259,21 @@ export default function HomePage() {
                 <p className="profile-lead">
                   This helps us show jobs that actually fit. Age can also help avoid showing jobs with legal age requirements that don&apos;t apply to you.
                 </p>
+
+                <div className="profile-browse-banner">
+                  <div className="profile-browse-text">
+                    <strong>Want to see all listings right now?</strong>
+                    <span>You can browse all community jobs directly without answering questions.</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-light"
+                    onClick={handleChooseBrowseAll}
+                    style={{ fontWeight: 800, fontSize: "13px", padding: "8px 16px", color: "#1e72c8", border: "1.5px solid #1e72c8", background: "#fff", whiteSpace: "nowrap" }}
+                  >
+                    Browse All Jobs →
+                  </button>
+                </div>
                 <div className="form-grid">
                   <div className="field">
                     <label>
@@ -2451,20 +2573,53 @@ export default function HomePage() {
             </button>
           </nav>
           <div className="nav-actions">
-            <button
-              type="button"
-              className="btn btn-light"
-              onClick={() => showToast("Sign-in flow would open here.")}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleChooseHiring}
-            >
-              Post a Job
-            </button>
+            {user ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span className="auth-user-chip" title={user.email}>
+                  👤 {user.name}
+                  <span className="auth-role-tag">
+                    {user.role === "EMPLOYER" ? "Employer" : "Seeker"}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  id="topbarSignOutBtn"
+                  onClick={handleSignOut}
+                  style={{ fontSize: "12px", padding: "6px 12px" }}
+                >
+                  Sign Out
+                </button>
+                {user.role === "EMPLOYER" ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleChooseHiring}
+                    style={{ fontSize: "12.5px", padding: "7px 14px" }}
+                  >
+                    Post a Job
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  id="topbarSignInBtn"
+                  onClick={() => handleOpenAuth("login")}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleChooseHiring}
+                >
+                  Post a Job
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -3291,6 +3446,303 @@ export default function HomePage() {
                 </form>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal (Firebase Auth & Demo Fallback) */}
+      {authModalOpen && (
+        <div
+          className="auth-overlay"
+          id="authModal"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setAuthModalOpen(false);
+          }}
+        >
+          <div className="auth-card">
+            <button
+              type="button"
+              className="auth-close"
+              onClick={() => setAuthModalOpen(false)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            <div className="auth-head">
+              <Image
+                src="/logo.png"
+                alt="YidMatch"
+                width={160}
+                height={50}
+                className="auth-brand-logo"
+              />
+              <h2>
+                {authTab === "login" && "Sign in to YidMatch"}
+                {authTab === "signup" && "Create your account"}
+                {authTab === "forgot" && "Reset your password"}
+              </h2>
+              <p>
+                {authTab === "login" && "Access your applications, listings, and saved searches."}
+                {authTab === "signup" && "Join our community platform for jobs and hiring."}
+                {authTab === "forgot" && "Enter your email to receive a password reset link."}
+              </p>
+            </div>
+
+            {authTab !== "forgot" && (
+              <div className="auth-tabs">
+                <button
+                  type="button"
+                  className={`auth-tab ${authTab === "login" ? "active" : ""}`}
+                  id="tabSignIn"
+                  onClick={() => {
+                    setAuthTab("login");
+                    setAuthError("");
+                    setAuthSuccessMsg("");
+                  }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  className={`auth-tab ${authTab === "signup" ? "active" : ""}`}
+                  id="tabSignUp"
+                  onClick={() => {
+                    setAuthTab("signup");
+                    setAuthError("");
+                    setAuthSuccessMsg("");
+                  }}
+                >
+                  Create Account
+                </button>
+              </div>
+            )}
+
+            {authError && (
+              <div className="auth-error" role="alert">
+                ⚠️ {authError}
+              </div>
+            )}
+
+            {authSuccessMsg && (
+              <div className="auth-success" role="alert">
+                ✓ {authSuccessMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleAuthSubmit} className="auth-form">
+              {authTab === "signup" && (
+                <>
+                  <label>I want to:</label>
+                  <div className="auth-role-toggle">
+                    <button
+                      type="button"
+                      className={`auth-role-btn ${authRole === "SEEKER" ? "selected" : ""}`}
+                      onClick={() => setAuthRole("SEEKER")}
+                    >
+                      🔎 Find a Job
+                    </button>
+                    <button
+                      type="button"
+                      className={`auth-role-btn ${authRole === "EMPLOYER" ? "selected" : ""}`}
+                      onClick={() => setAuthRole("EMPLOYER")}
+                    >
+                      💼 Hire Someone
+                    </button>
+                  </div>
+
+                  <div>
+                    <label htmlFor="authNameInput">Full Name *</label>
+                    <input
+                      id="authNameInput"
+                      type="text"
+                      placeholder="e.g. Avi Klein"
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {authRole === "EMPLOYER" && (
+                    <div>
+                      <label htmlFor="authCompanyInput">Company / Organization *</label>
+                      <input
+                        id="authCompanyInput"
+                        type="text"
+                        placeholder="e.g. Apex Distribution LLC"
+                        value={authCompany}
+                        onChange={(e) => setAuthCompany(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="authPhoneInput">Phone (Optional)</label>
+                    <input
+                      id="authPhoneInput"
+                      type="tel"
+                      placeholder="e.g. (718) 555-0199"
+                      value={authPhone}
+                      onChange={(e) => setAuthPhone(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="authLocationInput">Location (Optional)</label>
+                    <input
+                      id="authLocationInput"
+                      type="text"
+                      placeholder="e.g. Lakewood, NJ"
+                      value={authLocation}
+                      onChange={(e) => setAuthLocation(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label htmlFor="authEmailInput">Email Address *</label>
+                <input
+                  id="authEmailInput"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              {authTab !== "forgot" && (
+                <div>
+                  <label htmlFor="authPasswordInput">Password *</label>
+                  <input
+                    id="authPasswordInput"
+                    type="password"
+                    placeholder="••••••••"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="auth-submit-btn"
+                id="authSubmitBtn"
+                disabled={authLoading}
+              >
+                {authLoading ? (
+                  "Processing..."
+                ) : authTab === "login" ? (
+                  "Sign In"
+                ) : authTab === "signup" ? (
+                  "Create Account"
+                ) : (
+                  "Send Reset Email"
+                )}
+              </button>
+
+              <div className="auth-links">
+                {authTab === "login" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthTab("forgot");
+                        setAuthError("");
+                        setAuthSuccessMsg("");
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthTab("signup");
+                        setAuthError("");
+                        setAuthSuccessMsg("");
+                      }}
+                    >
+                      Need an account? Register
+                    </button>
+                  </>
+                )}
+                {authTab === "forgot" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthTab("login");
+                      setAuthError("");
+                      setAuthSuccessMsg("");
+                    }}
+                  >
+                    ← Back to Sign In
+                  </button>
+                )}
+              </div>
+            </form>
+
+            {authTab !== "forgot" && (
+              <>
+                <div className="auth-divider">
+                  <span>or</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-google"
+                  id="googleAuthBtn"
+                  onClick={handleGoogleAuth}
+                  disabled={authLoading}
+                >
+                  <svg width="18" height="18" viewBox="0 0 18 18">
+                    <path
+                      fill="#4285F4"
+                      d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"
+                    />
+                  </svg>
+                  Continue with Google
+                </button>
+
+                <div className="demo-accounts">
+                  <span className="demo-accounts-title">⚡ Instant Quick Sign-In (Demo)</span>
+                  <div className="demo-accounts-grid">
+                    <button
+                      type="button"
+                      className="demo-btn"
+                      id="demoSeekerBtn"
+                      onClick={() => handleDemoLogin("SEEKER")}
+                    >
+                      <span>🔎</span> Job Seeker
+                    </button>
+                    <button
+                      type="button"
+                      className="demo-btn"
+                      id="demoEmployerBtn"
+                      onClick={() => handleDemoLogin("EMPLOYER")}
+                    >
+                      <span>💼</span> Employer
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
