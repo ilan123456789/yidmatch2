@@ -19,21 +19,43 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    const jobId = formData.get("jobId") as string;
-    const seekerId = formData.get("seekerId") as string;
-    const seekerName = formData.get("seekerName") as string;
-    const seekerEmail = formData.get("seekerEmail") as string;
-    const seekerPhone = formData.get("seekerPhone") as string;
-    const coverNote = (formData.get("coverNote") as string) || "";
-    const resumeFile = formData.get("resume") as File | null;
+    let jobId = "";
+    let seekerId = "";
+    let seekerName = "";
+    let seekerEmail = "";
+    let seekerPhone = "";
+    let coverNote = "";
+    let resumeFile: File | null = null;
+    let passedJobTitle = "";
+    let passedCompanyName = "";
+
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
+      const formData = await req.formData();
+      jobId = (formData.get("jobId") as string) || "";
+      seekerId = (formData.get("seekerId") as string) || "";
+      seekerName = (formData.get("seekerName") as string) || "";
+      seekerEmail = (formData.get("seekerEmail") as string) || "";
+      seekerPhone = (formData.get("seekerPhone") as string) || "";
+      coverNote = (formData.get("coverNote") as string) || "";
+      resumeFile = formData.get("resume") as File | null;
+      passedJobTitle = (formData.get("jobTitle") as string) || "";
+      passedCompanyName = (formData.get("companyName") as string) || "";
+    } else {
+      const body = await req.json().catch(() => ({}));
+      jobId = body.jobId ? String(body.jobId) : "";
+      seekerId = body.seekerId ? String(body.seekerId) : "";
+      seekerName = body.seekerName || "";
+      seekerEmail = body.seekerEmail || "";
+      seekerPhone = body.seekerPhone || "";
+      coverNote = body.coverNote || "";
+      passedJobTitle = body.jobTitle || "";
+      passedCompanyName = body.companyName || "";
+    }
 
     if (!jobId || !seekerName || !seekerEmail) {
       return NextResponse.json({ error: "Job ID, Name, and Email are required" }, { status: 400 });
     }
-
-    const passedJobTitle = (formData.get("jobTitle") as string) || "";
-    const passedCompanyName = (formData.get("companyName") as string) || "";
 
     const job = await getJobById(jobId);
     if (!job && !passedJobTitle) {

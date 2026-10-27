@@ -267,9 +267,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const cred = await signInWithPopup(auth, googleProvider);
         const res = await fetch(`/api/auth/me?uid=${cred.user.uid}`);
         if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-          localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
+          try {
+            const text = await res.text();
+            if (text && text.trim()) {
+              const data = JSON.parse(text);
+              if (data?.user) {
+                setUser(data.user);
+                localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
+              }
+            }
+          } catch (_) {}
         } else {
           const profile: UserProfile = {
             uid: cred.user.uid,

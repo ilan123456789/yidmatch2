@@ -707,8 +707,15 @@ export default function HomePage() {
         body: formData,
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      let data: any = {};
+      try {
+        const text = await res.text();
+        if (text && text.trim()) {
+          data = JSON.parse(text);
+        }
+      } catch (_) {}
+
+      if (res.ok && data?.success) {
         setApplySuccess(true);
         showToast(`Application delivered to ${appliedJob.company}!`);
       } else {

@@ -346,6 +346,21 @@
   ],
   "applications": [
     {
+      "id": "app-kl251b63",
+      "jobId": "1",
+      "jobTitle": "Test Job",
+      "companyName": "Hiring Employer",
+      "seekerId": "seeker-anon",
+      "seekerName": "Test Seeker",
+      "seekerEmail": "test@example.com",
+      "seekerPhone": "",
+      "resumeUrl": "/sample-resume.pdf",
+      "resumeFileName": "Candidate_Resume.pdf",
+      "coverNote": "",
+      "status": "SUBMITTED",
+      "createdAt": "2026-10-27T17:13:13.571Z"
+    },
+    {
       "id": "app-lsjc3hpy",
       "jobId": "job-6crreu64",
       "jobTitle": "Test Title",
@@ -406,11 +421,13 @@
       "id": "alert-r0mr12yh",
       "phone": "+17325550199",
       "name": "",
-      "categories": [],
+      "categories": [
+        "HVAC"
+      ],
       "locations": [],
       "neighborhood": "",
       "active": true,
-      "createdAt": "2026-10-26T16:27:36.064Z"
+      "createdAt": "2026-10-27T17:07:44.355Z"
     },
     {
       "id": "alert-1",
