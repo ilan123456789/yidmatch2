@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { Job, DailyJob, JobApplication, UserProfile, JobAlert } from "@/types";
 import { SEED_JOBS, SEED_DAILY_JOBS } from "./seed-data";
-import { getFirebaseAdmin } from "./firebase/admin";
 
 interface DatabaseSchema {
   users: UserProfile[];
@@ -148,64 +147,21 @@ function saveLocalDb(data: DatabaseSchema): void {
 /* ==================== JOBS ==================== */
 
 export async function getJobs(): Promise<Job[]> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      const snap = await admin.adminDb.collection("jobs").orderBy("createdAt", "desc").get();
-      if (!snap.empty) {
-        return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Job));
-      }
-    } catch (e) {
-      console.warn("Firestore getJobs error, falling back to local store:", e);
-    }
-  }
-
   const db = getLocalDb();
   return db.jobs.filter((j) => j.status === "ACTIVE");
 }
 
 export async function getAllEmployerJobs(employerId: string): Promise<Job[]> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      const snap = await admin.adminDb.collection("jobs").where("employerId", "==", employerId).get();
-      return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Job));
-    } catch (e) {
-      console.warn("Firestore getAllEmployerJobs fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   return db.jobs.filter((j) => j.employerId === employerId);
 }
 
 export async function getJobById(id: string): Promise<Job | null> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      const doc = await admin.adminDb.collection("jobs").doc(id).get();
-      if (doc.exists) {
-        return { id: doc.id, ...doc.data() } as Job;
-      }
-    } catch (e) {
-      console.warn("Firestore getJobById fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   return db.jobs.find((j) => j.id === id) || null;
 }
 
 export async function createJob(job: Job): Promise<Job> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      await admin.adminDb.collection("jobs").doc(job.id).set(job);
-    } catch (e) {
-      console.warn("Firestore createJob fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   db.jobs.unshift(job);
   saveLocalDb(db);
@@ -213,15 +169,6 @@ export async function createJob(job: Job): Promise<Job> {
 }
 
 export async function updateJob(id: string, updates: Partial<Job>): Promise<Job | null> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      await admin.adminDb.collection("jobs").doc(id).update(updates);
-    } catch (e) {
-      console.warn("Firestore updateJob fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   const idx = db.jobs.findIndex((j) => j.id === id);
   if (idx !== -1) {
@@ -235,32 +182,11 @@ export async function updateJob(id: string, updates: Partial<Job>): Promise<Job 
 /* ==================== DAILY JOBS ==================== */
 
 export async function getDailyJobs(): Promise<DailyJob[]> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      const snap = await admin.adminDb.collection("dailyJobs").where("status", "==", "ACTIVE").get();
-      if (!snap.empty) {
-        return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as DailyJob));
-      }
-    } catch (e) {
-      console.warn("Firestore getDailyJobs fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   return db.dailyJobs.filter((dj) => dj.status === "ACTIVE");
 }
 
 export async function createDailyJob(job: DailyJob): Promise<DailyJob> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      await admin.adminDb.collection("dailyJobs").doc(job.id).set(job);
-    } catch (e) {
-      console.warn("Firestore createDailyJob fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   db.dailyJobs.unshift(job);
   saveLocalDb(db);
@@ -270,19 +196,6 @@ export async function createDailyJob(job: DailyJob): Promise<DailyJob> {
 /* ==================== APPLICATIONS ==================== */
 
 export async function getApplications(filter?: { jobId?: string; seekerId?: string; employerId?: string }): Promise<JobApplication[]> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      let query: any = admin.adminDb.collection("applications");
-      if (filter?.jobId) query = query.where("jobId", "==", filter.jobId);
-      if (filter?.seekerId) query = query.where("seekerId", "==", filter.seekerId);
-      const snap = await query.get();
-      return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as JobApplication));
-    } catch (e) {
-      console.warn("Firestore getApplications fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   let results = db.applications;
   if (filter?.jobId) {
@@ -295,15 +208,6 @@ export async function getApplications(filter?: { jobId?: string; seekerId?: stri
 }
 
 export async function createApplication(app: JobApplication): Promise<JobApplication> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      await admin.adminDb.collection("applications").doc(app.id).set(app);
-    } catch (e) {
-      console.warn("Firestore createApplication fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   db.applications.unshift(app);
   saveLocalDb(db);
@@ -311,15 +215,6 @@ export async function createApplication(app: JobApplication): Promise<JobApplica
 }
 
 export async function updateApplicationStatus(id: string, status: JobApplication["status"]): Promise<JobApplication | null> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      await admin.adminDb.collection("applications").doc(id).update({ status });
-    } catch (e) {
-      console.warn("Firestore updateApplicationStatus fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   const idx = db.applications.findIndex((a) => a.id === id);
   if (idx !== -1) {
@@ -333,49 +228,16 @@ export async function updateApplicationStatus(id: string, status: JobApplication
 /* ==================== USERS ==================== */
 
 export async function getUserById(uid: string): Promise<UserProfile | null> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      const doc = await admin.adminDb.collection("users").doc(uid).get();
-      if (doc.exists) {
-        return { uid: doc.id, ...doc.data() } as UserProfile;
-      }
-    } catch (e) {
-      console.warn("Firestore getUserById fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   return db.users.find((u) => u.uid === uid) || null;
 }
 
 export async function getUserByEmail(email: string): Promise<UserProfile | null> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      const snap = await admin.adminDb.collection("users").where("email", "==", email.toLowerCase()).limit(1).get();
-      if (!snap.empty) {
-        return { uid: snap.docs[0].id, ...snap.docs[0].data() } as UserProfile;
-      }
-    } catch (e) {
-      console.warn("Firestore getUserByEmail fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   return db.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
 }
 
 export async function saveUser(user: UserProfile): Promise<UserProfile> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      await admin.adminDb.collection("users").doc(user.uid).set(user);
-    } catch (e) {
-      console.warn("Firestore saveUser fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   const idx = db.users.findIndex((u) => u.uid === user.uid || u.email.toLowerCase() === user.email.toLowerCase());
   if (idx !== -1) {
@@ -390,18 +252,6 @@ export async function saveUser(user: UserProfile): Promise<UserProfile> {
 /* ==================== JOB ALERTS ==================== */
 
 export async function getJobAlerts(): Promise<JobAlert[]> {
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      const snap = await admin.adminDb.collection("jobAlerts").where("active", "==", true).get();
-      if (!snap.empty) {
-        return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as JobAlert));
-      }
-    } catch (e) {
-      console.warn("Firestore getJobAlerts fallback:", e);
-    }
-  }
-
   const db = getLocalDb();
   return (db.jobAlerts || []).filter((a) => a.active);
 }
@@ -419,15 +269,6 @@ export async function createJobAlert(alertData: Omit<JobAlert, "id" | "createdAt
     active: alertData.active !== undefined ? alertData.active : true,
     createdAt: new Date().toISOString(),
   };
-
-  const admin = getFirebaseAdmin();
-  if (admin) {
-    try {
-      await admin.adminDb.collection("jobAlerts").doc(id).set(newAlert);
-    } catch (e) {
-      console.warn("Firestore createJobAlert fallback:", e);
-    }
-  }
 
   const db = getLocalDb();
   if (!db.jobAlerts) db.jobAlerts = [];
