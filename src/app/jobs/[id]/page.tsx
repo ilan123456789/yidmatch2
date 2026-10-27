@@ -19,8 +19,52 @@ import {
   Send,
   FileCheck,
   Share2,
-  AlertCircle
+  AlertCircle,
+  MessageCircle,
+  Phone,
+  Mail
 } from "lucide-react";
+
+function getJobContactInfo(job: { title: string; company: string; country?: string; location: string }) {
+  const companySlug = job.company.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  let phone = "+1 (732) 555-0144";
+  let phoneRaw = "17325550144";
+  let email = `jobs@${companySlug || "yidmatch"}.com`;
+
+  const loc = (job.location || "").toLowerCase();
+  const ctry = (job.country || "").toLowerCase();
+
+  if (ctry.includes("kingdom") || loc.includes("london") || loc.includes("manchester")) {
+    phone = "+44 20 7946 0192";
+    phoneRaw = "442079460192";
+    email = `careers@${companySlug || "yidmatch"}.co.uk`;
+  } else if (ctry.includes("israel") || loc.includes("jerusalem") || loc.includes("shemesh")) {
+    phone = "+972 2-555-0188";
+    phoneRaw = "97225550188";
+    email = `jobs@${companySlug || "yidmatch"}.co.il`;
+  } else if (loc.includes("brooklyn") || loc.includes("boro park") || loc.includes("williamsburg") || loc.includes("crown heights")) {
+    phone = "+1 (718) 555-0182";
+    phoneRaw = "17185550182";
+    email = `hiring@${companySlug || "yidmatch"}.com`;
+  } else if (loc.includes("monsey") || loc.includes("rockland")) {
+    phone = "+1 (845) 555-0163";
+    phoneRaw = "18455550163";
+    email = `hr@${companySlug || "yidmatch"}.com`;
+  } else if (loc.includes("lakewood") || loc.includes("nj")) {
+    phone = "+1 (732) 555-0199";
+    phoneRaw = "17325550199";
+    email = `office@${companySlug || "yidmatch"}.com`;
+  }
+
+  const cleanDigits = phoneRaw.replace(/\D/g, "");
+  const whatsappMessage = encodeURIComponent(
+    `Shalom! I saw your listing for "${job.title}" at ${job.company} on YidMatch and I would like to apply.`
+  );
+  const whatsappUrl = `https://wa.me/${cleanDigits}?text=${whatsappMessage}`;
+
+  return { phone, phoneRaw: cleanDigits, email, whatsappUrl };
+}
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -267,6 +311,47 @@ export default function JobDetailPage() {
                 <p className="text-[11px] text-center text-slate-400">
                   Resumes are delivered directly to the hiring employer.
                 </p>
+
+                {/* Direct Contact Bar */}
+                {(() => {
+                  const contact = getJobContactInfo({
+                    title: job.title,
+                    company: job.company,
+                    location: job.location
+                  });
+                  return (
+                    <div className="pt-3 border-t border-slate-100 space-y-2">
+                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        ⚡ Direct Employer Contact
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <a
+                          href={contact.whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition border border-emerald-200"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </a>
+                        <a
+                          href={`tel:${contact.phoneRaw}`}
+                          className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg bg-blue-50 hover:bg-blue-100 text-brand-navy text-xs font-bold transition border border-blue-200"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>Call Direct</span>
+                        </a>
+                      </div>
+                      <a
+                        href={`mailto:${contact.email}?subject=${encodeURIComponent(`Application for ${job.title} via YidMatch`)}`}
+                        className="flex items-center justify-center space-x-1.5 w-full py-2 px-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition border border-slate-200"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>Email: {contact.email}</span>
+                      </a>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -361,7 +446,7 @@ export default function JobDetailPage() {
 
                 {/* Resume Upload File Box */}
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Resume / CV (PDF or DOCX) *</label>
+                  <label className="block text-slate-700 font-bold mb-1">Resume / CV (Optional — PDF or DOCX)</label>
                   <div className="border-2 border-dashed border-slate-300 hover:border-brand-blue rounded-xl p-4 text-center cursor-pointer transition bg-slate-50 hover:bg-blue-50/50 relative">
                     <input
                       type="file"

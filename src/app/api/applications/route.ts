@@ -32,10 +32,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Job ID, Name, and Email are required" }, { status: 400 });
     }
 
+    const passedJobTitle = (formData.get("jobTitle") as string) || "";
+    const passedCompanyName = (formData.get("companyName") as string) || "";
+
     const job = await getJobById(jobId);
-    if (!job) {
+    if (!job && !passedJobTitle) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
+
+    const finalJobTitle = job?.title || passedJobTitle || "Community Job";
+    const finalCompanyName = job?.company || passedCompanyName || "Hiring Employer";
 
     let resumeUrl = "/sample-resume.pdf";
     let resumeFileName = "Candidate_Resume.pdf";
@@ -69,8 +75,8 @@ export async function POST(req: Request) {
     const newApplication: JobApplication = {
       id: "app-" + Math.random().toString(36).substring(2, 10),
       jobId,
-      jobTitle: job.title,
-      companyName: job.company,
+      jobTitle: finalJobTitle,
+      companyName: finalCompanyName,
       seekerId: seekerId || "seeker-anon",
       seekerName,
       seekerEmail,

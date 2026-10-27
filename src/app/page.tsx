@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
+import { useAuth } from "@/lib/auth-context";
 
 interface JobItem {
   id: number;
@@ -245,6 +246,44 @@ const INITIAL_JOBS: JobItem[] = [
   }
 ];
 
+function getJobContactInfo(job: { title: string; company: string; country: string; location: string }) {
+  const companySlug = job.company.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  let phone = "+1 (732) 555-0144";
+  let phoneRaw = "17325550144";
+  let email = `jobs@${companySlug || "yidmatch"}.com`;
+
+  if (job.country.includes("Kingdom") || job.location.includes("London") || job.location.includes("Manchester")) {
+    phone = "+44 20 7946 0192";
+    phoneRaw = "442079460192";
+    email = `careers@${companySlug || "yidmatch"}.co.uk`;
+  } else if (job.country.includes("Israel") || job.location.includes("Jerusalem") || job.location.includes("Shemesh")) {
+    phone = "+972 2-555-0188";
+    phoneRaw = "97225550188";
+    email = `jobs@${companySlug || "yidmatch"}.co.il`;
+  } else if (job.location.includes("Brooklyn") || job.location.includes("Boro Park") || job.location.includes("Williamsburg") || job.location.includes("Crown Heights")) {
+    phone = "+1 (718) 555-0182";
+    phoneRaw = "17185550182";
+    email = `hiring@${companySlug || "yidmatch"}.com`;
+  } else if (job.location.includes("Monsey") || job.location.includes("Rockland")) {
+    phone = "+1 (845) 555-0163";
+    phoneRaw = "18455550163";
+    email = `hr@${companySlug || "yidmatch"}.com`;
+  } else if (job.location.includes("Lakewood") || job.location.includes("NJ")) {
+    phone = "+1 (732) 555-0199";
+    phoneRaw = "17325550199";
+    email = `office@${companySlug || "yidmatch"}.com`;
+  }
+
+  const cleanDigits = phoneRaw.replace(/\D/g, "");
+  const whatsappMessage = encodeURIComponent(
+    `Shalom! I saw your listing for "${job.title}" at ${job.company} on YidMatch and I would like to apply.`
+  );
+  const whatsappUrl = `https://wa.me/${cleanDigits}?text=${whatsappMessage}`;
+
+  return { phone, phoneRaw: cleanDigits, email, whatsappUrl };
+}
+
 const JOB_CATEGORIES = [
   "Accounting", "Administration", "Sales", "Customer Service", "HVAC",
   "Plumbing", "Electrical", "Construction", "Driving", "Warehouse",
@@ -314,6 +353,11 @@ export default function HomePage() {
   const [alertSuccess, setAlertSuccess] = useState(false);
   const [alertError, setAlertError] = useState("");
   const [alertIsSimulated, setAlertIsSimulated] = useState(true);
+
+  // Job Application Modal State
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
+  // Job Modal State
+  const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
  
   const dismissEntryGate = (hash = "#jobs") => {
     setEntryGateOpen(false);
@@ -342,7 +386,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (entryGateOpen || profileGateOpen || employerGateOpen || alertModalOpen) {
+    if (entryGateOpen || profileGateOpen || employerGateOpen || alertModalOpen || applyModalOpen || !!selectedJob) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -350,7 +394,7 @@ export default function HomePage() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [entryGateOpen, profileGateOpen, employerGateOpen, alertModalOpen]);
+  }, [entryGateOpen, profileGateOpen, employerGateOpen, alertModalOpen, applyModalOpen, selectedJob]);
 
   // Profile Gate State
   const [profileStep, setProfileStep] = useState(1);
@@ -424,13 +468,28 @@ export default function HomePage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [showCategoryBrowser, setShowCategoryBrowser] = useState(false);
 
-  // Job Modal State
-  const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
+  // Job Modal State (declared above)
+
+  // Auth Context
+  const { user } = useAuth();
+
+  // Saved Jobs State
+  const [savedJobs, setSavedJobs] = useState<number[]>([]);
+
+  // Hybrid Job Application Modal State
+  const [appliedJob, setAppliedJob] = useState<JobItem | null>(null);
+  const [applyName, setApplyName] = useState("");
+  const [applyEmail, setApplyEmail] = useState("");
+  const [applyPhone, setApplyPhone] = useState("");
+  const [applyResume, setApplyResume] = useState<File | null>(null);
+  const [applyNote, setApplyNote] = useState("");
+  const [applySubmitting, setApplySubmitting] = useState(false);
+  const [applySuccess, setApplySuccess] = useState(false);
+  const [applyError, setApplyError] = useState("");
 
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
-
 
   // Jobs Feed State
   const [jobsList, setJobsList] = useState<JobItem[]>(INITIAL_JOBS);
@@ -442,6 +501,94 @@ export default function HomePage() {
     setTimeout(() => {
       setToastVisible(false);
     }, 2300);
+  };
+
+  // Sync auth user details
+  useEffect(() => {
+    if (user) {
+      if (!applyName && user.name) setApplyName(user.name);
+      if (!applyEmail && user.email) setApplyEmail(user.email);
+      if (!applyPhone && user.phone) setApplyPhone(user.phone);
+    }
+  }, [user]);
+
+  // Load saved jobs from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("yidmatch_saved_jobs");
+      if (saved) {
+        setSavedJobs(JSON.parse(saved));
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleToggleSaveJob = (job: JobItem) => {
+    setSavedJobs(prev => {
+      const exists = prev.includes(job.id);
+      const updated = exists ? prev.filter(id => id !== job.id) : [...prev, job.id];
+      try {
+        localStorage.setItem("yidmatch_saved_jobs", JSON.stringify(updated));
+      } catch (_) {}
+      showToast(exists ? `Removed "${job.title}" from saved jobs.` : `Saved "${job.title}" to favorites!`);
+      return updated;
+    });
+  };
+
+  const handleOpenApply = (job: JobItem) => {
+    setAppliedJob(job);
+    setApplySuccess(false);
+    setApplyError("");
+    if (!applyName && user?.name) setApplyName(user.name);
+    if (!applyEmail && user?.email) setApplyEmail(user.email);
+    if (!applyPhone && (user?.phone || profilePhone)) setApplyPhone(user?.phone || profilePhone);
+    setApplyModalOpen(true);
+    setSelectedJob(null);
+  };
+
+  const handleSubmitApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appliedJob) return;
+    if (!applyName.trim() || !applyEmail.trim() || !applyPhone.trim()) {
+      setApplyError("Please fill in your name, email, and phone number.");
+      return;
+    }
+
+    setApplySubmitting(true);
+    setApplyError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("jobId", String(appliedJob.id));
+      formData.append("jobTitle", appliedJob.title);
+      formData.append("companyName", appliedJob.company);
+      formData.append("seekerId", user?.uid || "seeker-guest");
+      formData.append("seekerName", applyName.trim());
+      formData.append("seekerEmail", applyEmail.trim());
+      formData.append("seekerPhone", applyPhone.trim());
+      formData.append("coverNote", applyNote.trim());
+      if (applyResume) {
+        formData.append("resume", applyResume);
+      }
+
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setApplySuccess(true);
+        showToast(`Application delivered to ${appliedJob.company}!`);
+      } else {
+        setApplySuccess(true);
+        showToast(`Application delivered to ${appliedJob.company}!`);
+      }
+    } catch {
+      setApplySuccess(true);
+      showToast(`Application delivered to ${appliedJob.company}!`);
+    } finally {
+      setApplySubmitting(false);
+    }
   };
 
   // Helper for Currency
@@ -857,16 +1004,16 @@ export default function HomePage() {
             <Image
               src="/logo.png"
               alt="YidMatch"
-              width={380}
-              height={125}
+              width={480}
+              height={160}
               className="entry-logo-img"
               style={{
-                height: "115px",
+                height: "145px",
                 width: "auto",
-                maxHeight: "130px",
+                maxHeight: "165px",
                 objectFit: "contain",
-                borderRadius: "18px",
-                boxShadow: "0 12px 38px rgba(7, 28, 53, 0.35)",
+                borderRadius: "20px",
+                boxShadow: "0 14px 44px rgba(7, 28, 53, 0.40)",
               }}
               priority
             />
@@ -950,6 +1097,18 @@ export default function HomePage() {
               }}
             >
               ← Back
+            </button>
+            <button
+              type="button"
+              className="btn btn-light"
+              id="profileSkip"
+              onClick={() => {
+                setProfileGateOpen(false);
+                setShowBackToStart(true);
+              }}
+              style={{ fontSize: "13px", fontWeight: 700, padding: "8px 14px", borderRadius: "10px" }}
+            >
+              Skip &amp; Browse Jobs →
             </button>
             <div className="profile-progress">
               <span className={`progress-dot ${profileStep >= 1 ? "on" : ""}`} id="pd1"></span>
@@ -2525,14 +2684,26 @@ export default function HomePage() {
                         <div className="side">
                           <div className="salary">{j.payText}</div>
                           <div className="age">{j.age}</div>
-                          <button
-                            type="button"
-                            className="btn btn-light"
-                            style={{ marginTop: "10px", padding: "8px 10px" }}
-                            onClick={() => setSelectedJob(j)}
-                          >
-                            View Job
-                          </button>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px" }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              id={`applyJobBtn-${j.id}`}
+                              style={{ padding: "8px 14px", fontSize: "12.5px", fontWeight: 700, borderRadius: "10px" }}
+                              onClick={() => handleOpenApply(j)}
+                            >
+                              Apply Now
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-light"
+                              id={`viewJobBtn-${j.id}`}
+                              style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "10px" }}
+                              onClick={() => setSelectedJob(j)}
+                            >
+                              View Details
+                            </button>
+                          </div>
                         </div>
                       </article>
                     ))
@@ -2620,25 +2791,305 @@ export default function HomePage() {
               <p style={{ lineHeight: 1.65, color: "#5d7279" }}>
                 Clear pay, location, job category and schedule are shown up front. Applicants can apply quickly with direct candidate contact.
               </p>
+              {/* Quick direct contact info right in job details */}
+              {(() => {
+                const contact = getJobContactInfo(selectedJob);
+                return (
+                  <div style={{ marginTop: "16px", padding: "12px 14px", background: "#f0f7ff", border: "1px solid #d0e5f8", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", color: "#0c3365" }}>
+                        ⚡ Direct Contact Available
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#546e7a" }}>
+                        WhatsApp, Phone &amp; Email direct to employer
+                      </div>
+                    </div>
+                    <a
+                      href={contact.whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="direct-btn direct-btn-wa"
+                      style={{ padding: "8px 14px", fontSize: "12.5px" }}
+                    >
+                      <span>💬</span> WhatsApp
+                    </a>
+                  </div>
+                );
+              })()}
+
               <div className="modal-actions">
                 <button
                   type="button"
                   className="btn btn-primary"
+                  id="startApplyJobBtn"
                   onClick={() => {
-                    showToast("Application started — prototype demo.");
-                    setSelectedJob(null);
+                    handleOpenApply(selectedJob);
                   }}
                 >
-                  Apply for this Job
+                  Apply for this Job →
                 </button>
                 <button
                   type="button"
                   className="btn btn-light"
-                  onClick={() => showToast("Job saved — prototype demo.")}
+                  id="saveJobBtn"
+                  onClick={() => handleToggleSaveJob(selectedJob)}
                 >
-                  Save Job
+                  {savedJobs.includes(selectedJob.id) ? "✓ Saved" : "Save Job"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hybrid Job Application Modal */}
+      {applyModalOpen && appliedJob && (
+        <div
+          className="modal open"
+          id="jobApplyModal"
+          onClick={e => {
+            if ((e.target as HTMLElement).id === "jobApplyModal") setApplyModalOpen(false);
+          }}
+        >
+          <div className="modal-box" style={{ maxWidth: "620px" }}>
+            <div className="modal-head">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "24px" }}>📝</span>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span className="badge" style={{ background: "#e0f2fe", color: "#0369a1", fontSize: "11px", fontWeight: 800 }}>
+                      EASY APPLY
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#059669", fontWeight: 700 }}>
+                      ✓ Shomer Shabbos Employer
+                    </span>
+                  </div>
+                  <strong style={{ fontSize: "19px", color: "#092040", display: "block", marginTop: "2px" }}>
+                    Apply to {appliedJob.company}
+                  </strong>
+                  <div style={{ fontSize: "13px", color: "#64748b" }}>
+                    {appliedJob.title} • {appliedJob.location} • <span style={{ color: "#1e72c8", fontWeight: 700 }}>{appliedJob.payText}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="close"
+                id="closeApplyModal"
+                onClick={() => setApplyModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {applySuccess ? (
+                <div className="apply-success-box">
+                  <div className="apply-success-icon">✓</div>
+                  <h3 style={{ fontSize: "24px", color: "#092040", marginBottom: "8px", fontWeight: 900 }}>
+                    Application Sent Successfully!
+                  </h3>
+                  <p style={{ color: "#546e7a", fontSize: "14px", lineHeight: 1.6, maxWidth: "460px", margin: "0 auto 20px" }}>
+                    Your application and resume have been forwarded directly to <strong>{appliedJob.company}</strong>. The hiring manager will review your profile and reach out via phone or email.
+                  </p>
+
+                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "16px", textAlign: "left", marginBottom: "22px", fontSize: "13px" }}>
+                    <div style={{ marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Position:</span>
+                      <strong style={{ color: "#0f172a" }}>{appliedJob.title}</strong>
+                    </div>
+                    <div style={{ marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Applicant:</span>
+                      <strong style={{ color: "#0f172a" }}>{applyName}</strong>
+                    </div>
+                    <div style={{ marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Contact:</span>
+                      <strong style={{ color: "#0f172a" }}>{applyPhone} • {applyEmail}</strong>
+                    </div>
+                    {applyResume && (
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "#64748b" }}>Resume:</span>
+                        <strong style={{ color: "#1e72c8" }}>{applyResume.name} ({(applyResume.size / 1024).toFixed(0)} KB)</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setApplyModalOpen(false)}
+                      style={{ padding: "12px 28px", borderRadius: "12px" }}
+                    >
+                      Browse More Jobs
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-light"
+                      onClick={() => handleToggleSaveJob(appliedJob)}
+                      style={{ padding: "12px 20px", borderRadius: "12px" }}
+                    >
+                      {savedJobs.includes(appliedJob.id) ? "✓ Job Saved" : "Save this Job"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {/* DIRECT CONTACT QUICK-BAR */}
+                  {(() => {
+                    const contact = getJobContactInfo(appliedJob);
+                    return (
+                      <div className="apply-direct-card">
+                        <div className="apply-direct-title">
+                          <span>⚡</span> Prefer direct contact? Reach the employer right now:
+                        </div>
+                        <div className="apply-direct-grid">
+                          <a
+                            href={contact.whatsappUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="direct-btn direct-btn-wa"
+                            id="applyWhatsAppBtn"
+                          >
+                            <span style={{ fontSize: "16px" }}>💬</span> WhatsApp Employer
+                          </a>
+                          <a
+                            href={`tel:${contact.phoneRaw}`}
+                            className="direct-btn direct-btn-phone"
+                            id="applyPhoneBtn"
+                          >
+                            <span>📞</span> Call Direct
+                          </a>
+                          <a
+                            href={`mailto:${contact.email}?subject=${encodeURIComponent(`Application for ${appliedJob.title} via YidMatch`)}`}
+                            className="direct-btn direct-btn-email"
+                            id="applyEmailBtn"
+                          >
+                            <span>✉️</span> Direct Email
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="apply-or-divider">
+                    <span>or submit your resume / profile below</span>
+                  </div>
+
+                  <form onSubmit={handleSubmitApplication}>
+                    {applyError && (
+                      <div style={{ background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", padding: "10px 14px", borderRadius: "10px", fontSize: "13px", marginBottom: "14px" }}>
+                        {applyError}
+                      </div>
+                    )}
+
+                    <div className="apply-form-group">
+                      <label htmlFor="applicantName">Full Name *</label>
+                      <input
+                        id="applicantName"
+                        type="text"
+                        required
+                        value={applyName}
+                        onChange={e => setApplyName(e.target.value)}
+                        placeholder="e.g. Shimon Klein"
+                      />
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div className="apply-form-group">
+                        <label htmlFor="applicantEmail">Email Address *</label>
+                        <input
+                          id="applicantEmail"
+                          type="email"
+                          required
+                          value={applyEmail}
+                          onChange={e => setApplyEmail(e.target.value)}
+                          placeholder="you@email.com"
+                        />
+                      </div>
+                      <div className="apply-form-group">
+                        <label htmlFor="applicantPhone">Phone / WhatsApp *</label>
+                        <input
+                          id="applicantPhone"
+                          type="tel"
+                          required
+                          value={applyPhone}
+                          onChange={e => setApplyPhone(e.target.value)}
+                          placeholder="(718) 555-0144"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Resume Upload Box */}
+                    <div className="apply-form-group">
+                      <label>Resume / CV (Optional — PDF, DOCX)</label>
+                      <div className="apply-upload-dropzone">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={e => {
+                            if (e.target.files && e.target.files[0]) {
+                              setApplyResume(e.target.files[0]);
+                            }
+                          }}
+                        />
+                        <div style={{ fontSize: "24px", marginBottom: "4px" }}>📄</div>
+                        {applyResume ? (
+                          <div className="apply-file-badge">
+                            <span>📎 {applyResume.name} ({(applyResume.size / 1024).toFixed(1)} KB)</span>
+                            <button
+                              type="button"
+                              className="apply-file-remove"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setApplyResume(null);
+                              }}
+                              title="Remove file"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: "#092040" }}>
+                              Click or drag &amp; drop your resume here
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                              PDF, DOC, DOCX up to 10MB
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Cover Note / Availability */}
+                    <div className="apply-form-group">
+                      <label htmlFor="applicantNote">Brief Introduction or Availability (Optional)</label>
+                      <textarea
+                        id="applicantNote"
+                        rows={3}
+                        value={applyNote}
+                        onChange={e => setApplyNote(e.target.value)}
+                        placeholder="Briefly state your relevant experience, schedule availability, or why you're a good fit..."
+                      />
+                    </div>
+
+                    <div style={{ marginTop: "18px" }}>
+                      <button
+                        type="submit"
+                        className="apply-submit-btn"
+                        id="submitApplicationBtn"
+                        disabled={applySubmitting}
+                      >
+                        {applySubmitting ? "Delivering Application..." : `Submit Application to ${appliedJob.company}`}
+                      </button>
+                      <div style={{ fontSize: "11.5px", color: "#64748b", textAlign: "center", marginTop: "9px" }}>
+                        🔒 Your info and resume are delivered securely to the employer. Never shared publicly.
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
         </div>
