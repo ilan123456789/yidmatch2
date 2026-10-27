@@ -629,6 +629,19 @@ export default function HomePage() {
     }, 100);
   };
 
+  const handleChooseBrowseAll = () => {
+    dismissEntryGate("#jobs");
+    setTypeFilter("");
+    setQuickCat("");
+    setCategoryFilter("");
+    setCountryFilter("");
+    setPayFilter("0");
+    showToast("Showing all approved community jobs.");
+    setTimeout(() => {
+      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
   const handleChooseHiring = () => {
     dismissEntryGate("#jobs");
     setProfileGateOpen(false);
@@ -1050,6 +1063,20 @@ export default function HomePage() {
                 <span className="role-label">Urgent & Gigs</span>
                 <h2>Same-Day / Short-Term</h2>
                 <p>Find immediate work, daily gigs, simcha setups, urgent drivers, and same-day pay.</p>
+              </span>
+              <span className="role-arrow">→</span>
+            </button>
+            <button
+              type="button"
+              className="role-card browse-all-card"
+              id="chooseBrowseAll"
+              onClick={handleChooseBrowseAll}
+            >
+              <span className="role-icon">📋</span>
+              <span className="role-copy">
+                <span className="role-label">All Listings</span>
+                <h2>Browse All Jobs</h2>
+                <p>Directly explore all approved jobs without setting up preferences.</p>
               </span>
               <span className="role-arrow">→</span>
             </button>
@@ -2684,21 +2711,19 @@ export default function HomePage() {
                         <div className="side">
                           <div className="salary">{j.payText}</div>
                           <div className="age">{j.age}</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px" }}>
+                          <div className="job-card-actions">
                             <button
                               type="button"
-                              className="btn btn-primary"
+                              className="btn btn-primary job-action-btn"
                               id={`applyJobBtn-${j.id}`}
-                              style={{ padding: "8px 14px", fontSize: "12.5px", fontWeight: 700, borderRadius: "10px" }}
                               onClick={() => handleOpenApply(j)}
                             >
                               Apply Now
                             </button>
                             <button
                               type="button"
-                              className="btn btn-light"
+                              className="btn btn-light job-action-btn"
                               id={`viewJobBtn-${j.id}`}
-                              style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "10px" }}
                               onClick={() => setSelectedJob(j)}
                             >
                               View Details

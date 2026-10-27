@@ -506,7 +506,37 @@ h1 {
 
 .job-card .side {
   text-align: right;
-  min-width: 110px;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.job-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 10px;
+  width: 140px;
+}
+
+.job-action-btn {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
 }
 
 .salary {
@@ -1135,16 +1165,43 @@ footer {
 
 .role-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
   text-align: left;
+  max-width: 960px;
+  margin: 0 auto;
 }
 
-@media (max-width: 960px) {
-  .role-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
+#chooseJobSeeker,
+#chooseSameDay {
+  grid-column: span 1;
+}
+
+#chooseBrowseAll {
+  grid-column: 1 / -1;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1.5px solid rgba(30, 114, 200, 0.28);
+  box-shadow: 0 12px 36px rgba(8, 28, 59, 0.14);
+}
+
+#chooseBrowseAll:hover {
+  border-color: #1e72c8;
+  background: #ffffff;
+  transform: translateY(-3px);
+  box-shadow: 0 18px 45px rgba(18, 70, 134, 0.22);
+}
+
+#chooseBrowseAll .role-icon {
+  background: #e9f2fb;
+  color: #1e72c8;
+}
+
+#chooseBrowseAll .role-label {
+  color: #1e72c8;
+}
+
+#chooseHiring {
+  grid-column: 1 / -1;
 }
 
 .role-card {
@@ -2443,10 +2500,10 @@ body {
   }
   .role-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 9px;
+    gap: 8px;
   }
   .role-card {
-    border-radius: 16px;
+    border-radius: 15px;
     box-shadow: 0 4px 16px rgba(8, 28, 59, 0.12);
   }
 
@@ -2458,35 +2515,35 @@ body {
     align-items: flex-start;
     justify-content: flex-start;
     text-align: left;
-    padding: 12px 11px;
-    gap: 6px;
-    min-height: 105px;
+    padding: 10px 10px;
+    gap: 4px;
+    min-height: 90px;
   }
   #chooseJobSeeker .role-icon,
   #chooseSameDay .role-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    font-size: 18px;
-    flex: 0 0 36px;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    font-size: 16px;
+    flex: 0 0 32px;
   }
   #chooseJobSeeker .role-label,
   #chooseSameDay .role-label {
-    font-size: 9.5px;
+    font-size: 8.5px;
     margin-bottom: 1px;
     letter-spacing: 0.08em;
   }
   #chooseJobSeeker h2,
   #chooseSameDay h2 {
-    font-size: 14px;
-    margin: 0 0 2px;
+    font-size: 13.5px;
+    margin: 0 0 1px;
     line-height: 1.2;
     font-weight: 800;
   }
   #chooseJobSeeker p,
   #chooseSameDay p {
-    font-size: 10.5px;
-    line-height: 1.28;
+    font-size: 10px;
+    line-height: 1.25;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -2497,41 +2554,96 @@ body {
     display: none;
   }
 
-  /* Line 2 (bottom): Hiring takes the full size */
+  /* Line 2 (middle): Browse All Jobs (right above I'm Hiring and below the two) */
+  #chooseBrowseAll {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    padding: 9px 12px;
+    gap: 10px;
+    min-height: 54px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1.5px solid #bddaf7;
+  }
+  #chooseBrowseAll .role-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    font-size: 16px;
+    flex: 0 0 32px;
+    background: #e8f2fc;
+  }
+  #chooseBrowseAll .role-label {
+    font-size: 8.5px;
+    margin-bottom: 0px;
+    color: #1e72c8;
+    font-weight: 800;
+  }
+  #chooseBrowseAll h2 {
+    font-size: 13.5px;
+    margin: 0;
+    color: #0b1f35;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  #chooseBrowseAll p {
+    font-size: 9.5px;
+    line-height: 1.2;
+    color: #5d7486;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  #chooseBrowseAll .role-arrow {
+    display: block;
+    font-size: 15px;
+    color: #1e72c8;
+    margin-left: auto;
+  }
+
+  /* Line 3 (bottom): Hiring takes the full size */
   #chooseHiring {
     grid-column: 1 / -1;
     display: flex;
     flex-direction: row;
     align-items: center;
     text-align: left;
-    padding: 16px 16px;
-    gap: 14px;
-    min-height: 84px;
+    padding: 10px 12px;
+    gap: 10px;
+    min-height: 60px;
   }
   #chooseHiring .role-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    font-size: 22px;
-    flex: 0 0 44px;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    font-size: 17px;
+    flex: 0 0 34px;
   }
   #chooseHiring .role-label {
-    font-size: 10.5px;
-    margin-bottom: 2px;
+    font-size: 8.5px;
+    margin-bottom: 0px;
     letter-spacing: 0.08em;
   }
   #chooseHiring h2 {
-    font-size: 16.5px;
-    margin: 0 0 3px;
+    font-size: 14px;
+    margin: 0;
     line-height: 1.2;
     font-weight: 800;
   }
   #chooseHiring p {
-    font-size: 12px;
-    line-height: 1.35;
+    font-size: 9.5px;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   #chooseHiring .role-arrow {
-    font-size: 20px;
+    display: block;
+    font-size: 17px;
     margin-left: auto;
     flex: 0 0 auto;
     padding-left: 4px;
@@ -2626,6 +2738,21 @@ body {
     grid-column: 1;
     text-align: left;
     margin-top: 10px;
+    align-items: stretch;
+    width: 100%;
+  }
+  .job-card-actions {
+    flex-direction: row;
+    width: 100%;
+    gap: 8px;
+  }
+  .job-action-btn {
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 40px !important;
+    min-height: 40px !important;
   }
   .details-grid {
     grid-template-columns: 1fr;
