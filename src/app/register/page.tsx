@@ -159,7 +159,7 @@ export default function RegisterPage() {
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. Apex Distribution LLC"
+                placeholder="Enter company or organization name"
                 className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-brand-blue"
               />
             </div>
@@ -179,14 +179,31 @@ export default function RegisterPage() {
             <div>
               <label className="block text-slate-700 font-bold mb-1">Community</label>
               <select
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                value={NEIGHBORHOOD_OPTIONS.includes(location as any) ? location : "Other"}
+                onChange={(e) => {
+                  if (e.target.value === "Other") {
+                    setLocation("");
+                  } else {
+                    setLocation(e.target.value);
+                  }
+                }}
                 className="w-full border border-slate-300 rounded-lg p-2.5 outline-none bg-white font-medium"
               >
                 {NEIGHBORHOOD_OPTIONS.filter((n) => n !== "All Locations").map((n) => (
                   <option key={n} value={n}>{n}</option>
                 ))}
+                <option value="Other">✏️ Other (Type your own...)</option>
               </select>
+              {!NEIGHBORHOOD_OPTIONS.includes(location as any) && (
+                <input
+                  type="text"
+                  placeholder="Enter custom community / location..."
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full mt-2 border border-brand-blue rounded-lg p-2.5 outline-none font-medium bg-blue-50/50"
+                  autoFocus
+                />
+              )}
             </div>
           </div>
 

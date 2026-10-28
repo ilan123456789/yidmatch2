@@ -335,6 +335,148 @@ const INTEREST_OPTIONS = [
   { label: "👔 Management", value: "Management" }
 ];
 
+const EMPLOYER_CATEGORY_OPTIONS = [
+  { label: "🧾 Accounting & Finance", value: "Accounting & Finance" },
+  { label: "🗂️ Administration & Office", value: "Administration & Office" },
+  { label: "📈 Sales & Business Development", value: "Sales" },
+  { label: "🎧 Customer Service", value: "Customer Service" },
+  { label: "❄️ HVAC / Climate Control", value: "HVAC" },
+  { label: "🔧 Plumbing & Pipefitting", value: "Plumbing" },
+  { label: "⚡ Electrical & Wiring", value: "Electrical" },
+  { label: "🏗️ Construction & Trades", value: "Construction & Trades" },
+  { label: "🚐 Driving & Delivery", value: "Driving & Delivery" },
+  { label: "📦 Warehouse & Logistics", value: "Warehouse & Logistics" },
+  { label: "💻 IT & Technology", value: "IT & Technology" },
+  { label: "🎨 Design & Creative", value: "Design & Creative" },
+  { label: "📣 Marketing & Media", value: "Marketing" },
+  { label: "🏢 Real Estate & Property", value: "Real Estate & Property Management" },
+  { label: "🩺 Healthcare & Nursing", value: "Healthcare" },
+  { label: "📚 Education & Teaching", value: "Education" },
+  { label: "🍽️ Food Service & Culinary", value: "Food Service" },
+  { label: "🛍️ Retail & Store Operations", value: "Retail" },
+  { label: "🛡️ Security & Protection", value: "Security" },
+  { label: "👔 Management & Operations", value: "Management" },
+  { label: "🧹 Cleaning & Maintenance", value: "Cleaning & Maintenance" },
+  { label: "🏭 Manufacturing & Assembly", value: "Manufacturing" },
+  { label: "⚖️ Legal & Compliance", value: "Legal" },
+  { label: "🤝 Nonprofit & Community", value: "Nonprofit / Community" },
+  { label: "⚡ Same-Day / Daily Gig", value: "Same-Day / Short-term" },
+  { label: "💡 Other / General", value: "Other" }
+];
+
+function DropdownWithCustom({
+  id,
+  value,
+  onChange,
+  options,
+  placeholder,
+  allowEmpty,
+  emptyLabel,
+  customPlaceholder = "Type your own...",
+}: {
+  id?: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: (string | { value: string; label: string })[];
+  placeholder?: string;
+  allowEmpty?: boolean;
+  emptyLabel?: string;
+  customPlaceholder?: string;
+}) {
+  const normOptions = useMemo(() => {
+    return options.map(o => (typeof o === "string" ? { value: o, label: o } : o));
+  }, [options]);
+
+  const isKnownOption = (allowEmpty && value === "") || normOptions.some(o => o.value === value);
+  const [isCustomMode, setIsCustomMode] = useState(!isKnownOption && Boolean(value));
+  const [customDraft, setCustomDraft] = useState(!isKnownOption && Boolean(value) ? value : "");
+
+  useEffect(() => {
+    const known = (allowEmpty && value === "") || normOptions.some(o => o.value === value);
+    if (known) {
+      setIsCustomMode(false);
+    } else if (value && value !== "__custom__") {
+      setIsCustomMode(true);
+      setCustomDraft(value);
+    }
+  }, [value, normOptions, allowEmpty]);
+
+  return (
+    <div style={{ width: "100%" }}>
+      <select
+        id={id}
+        value={isCustomMode ? "__custom__" : value}
+        onChange={(e) => {
+          if (e.target.value === "__custom__") {
+            setIsCustomMode(true);
+            const initial = customDraft || "";
+            onChange(initial);
+          } else {
+            setIsCustomMode(false);
+            onChange(e.target.value);
+          }
+        }}
+      >
+        {allowEmpty && <option value="">{emptyLabel || "Any"}</option>}
+        {placeholder && !allowEmpty && <option value="">{placeholder}</option>}
+        {normOptions.map(opt => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+        <option value="__custom__">✏️ Other / Type your own...</option>
+      </select>
+
+      {isCustomMode && (
+        <div style={{ marginTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder={customPlaceholder}
+            value={value === "__custom__" ? "" : value}
+            onChange={(e) => {
+              setCustomDraft(e.target.value);
+              onChange(e.target.value);
+            }}
+            autoFocus
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              borderRadius: "10px",
+              border: "1.5px solid #1e72c8",
+              fontSize: "14px",
+              background: "#f0f7ff",
+              color: "#0a2540",
+              fontWeight: "600",
+            }}
+          />
+          <button
+            type="button"
+            title="Reset to preset options"
+            onClick={() => {
+              setIsCustomMode(false);
+              setCustomDraft("");
+              onChange(allowEmpty ? "" : normOptions[0]?.value || "");
+            }}
+            style={{
+              padding: "8px 12px",
+              fontSize: "12px",
+              fontWeight: 700,
+              borderRadius: "8px",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              cursor: "pointer",
+              color: "#64748b",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ✕ Reset
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const { user, login, signup, loginWithGoogle, resetPassword, logout } = useAuth();
 
@@ -492,7 +634,7 @@ export default function HomePage() {
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   // Job Modal State
   const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
- 
+
   const dismissEntryGate = (hash = "#jobs") => {
     setEntryGateOpen(false);
     setShowBackToStart(true);
@@ -502,7 +644,7 @@ export default function HomePage() {
       if (typeof window !== "undefined" && hash) {
         history.replaceState(null, "", hash);
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   // Restore dismissed state on refresh so the user stays on the jobs page
@@ -516,7 +658,7 @@ export default function HomePage() {
         setEntryGateOpen(false);
         setShowBackToStart(true);
       }
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   useEffect(() => {
@@ -569,7 +711,25 @@ export default function HomePage() {
   const [empCurrency, setEmpCurrency] = useState("USD $");
   const [empPayMin, setEmpPayMin] = useState("");
   const [empPayMax, setEmpPayMax] = useState("");
+  const [empPayRate, setEmpPayRate] = useState("");
+  const [isSameDayGig, setIsSameDayGig] = useState(false);
   const [empBenefits, setEmpBenefits] = useState<string[]>([]);
+
+  // Searchable text dropdown states
+  const [interestDropdownOpen, setInterestDropdownOpen] = useState(false);
+  const [empCatDropdownOpen, setEmpCatDropdownOpen] = useState(false);
+  const [empCatSearchQuery, setEmpCatSearchQuery] = useState("");
+
+  // Plan selection
+  const [chosenPublishPlan, setChosenPublishPlan] = useState<"standard" | "featured" | "sameday">("featured");
+
+  // Contact Us Modal State
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactName, setContactName] = useState("");
+  const [contactEmailOrPhone, setContactEmailOrPhone] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactSent, setContactSent] = useState(false);
 
   const [empExperience, setEmpExperience] = useState("No experience needed");
   const [empTrain, setEmpTrain] = useState("Yes, full training");
@@ -626,6 +786,28 @@ export default function HomePage() {
   // Jobs Feed State
   const [jobsList, setJobsList] = useState<JobItem[]>(INITIAL_JOBS);
 
+  // User Profile Dropdown & Resume Builder State
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [resumeModalOpen, setResumeModalOpen] = useState(false);
+  const [resumeFullName, setResumeFullName] = useState("");
+  const [resumePhone, setResumePhone] = useState("");
+  const [resumeEmail, setResumeEmail] = useState("");
+  const [resumeCity, setResumeCity] = useState("Lakewood, NJ");
+  const [resumeTitle, setResumeTitle] = useState("Full-Charge Bookkeeper / Office Coordinator");
+  const [resumeSummary, setResumeSummary] = useState(
+    "Hardworking, detail-oriented professional with strong administrative, communication, and organizational skills. Seeking a stable position within a heimish, growth-oriented environment."
+  );
+  const [resumeExperience, setResumeExperience] = useState(
+    "• Office Coordinator & Billing Specialist (2023–Present): Managed accounts, vendor invoicing, and customer inquiries.\n• Administrative Assistant (2021–2023): Handled scheduling, email correspondence, and weekly reports."
+  );
+  const [resumeSkills, setResumeSkills] = useState(
+    "QuickBooks, Microsoft Excel, Client Communication, English & Yiddish Fluent, Shomer Shabbos"
+  );
+  const [resumeEducation, setResumeEducation] = useState(
+    "High School Graduate • Bookkeeping & Office Accounting Course"
+  );
+  const [resumeSaved, setResumeSaved] = useState(false);
+
   // Show Toast Helper
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -641,8 +823,25 @@ export default function HomePage() {
       if (!applyName && user.name) setApplyName(user.name);
       if (!applyEmail && user.email) setApplyEmail(user.email);
       if (!applyPhone && user.phone) setApplyPhone(user.phone);
+      if (!resumeFullName && user.name) setResumeFullName(user.name);
+      if (!resumeEmail && user.email) setResumeEmail(user.email);
+      if (!resumePhone && user.phone) setResumePhone(user.phone);
     }
   }, [user]);
+
+  // Close user profile dropdown when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("#userProfileDropdown") && !target.closest("#userProfileTriggerBtn") && !target.closest("#guestProfileTriggerBtn")) {
+        setUserDropdownOpen(false);
+      }
+    };
+    if (userDropdownOpen) {
+      window.addEventListener("click", handleOutsideClick);
+    }
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, [userDropdownOpen]);
 
   // Load saved jobs from localStorage
   useEffect(() => {
@@ -651,7 +850,7 @@ export default function HomePage() {
       if (saved) {
         setSavedJobs(JSON.parse(saved));
       }
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   const handleToggleSaveJob = (job: JobItem) => {
@@ -660,7 +859,7 @@ export default function HomePage() {
       const updated = exists ? prev.filter(id => id !== job.id) : [...prev, job.id];
       try {
         localStorage.setItem("yidmatch_saved_jobs", JSON.stringify(updated));
-      } catch (_) {}
+      } catch (_) { }
       showToast(exists ? `Removed "${job.title}" from saved jobs.` : `Saved "${job.title}" to favorites!`);
       return updated;
     });
@@ -713,7 +912,7 @@ export default function HomePage() {
         if (text && text.trim()) {
           data = JSON.parse(text);
         }
-      } catch (_) {}
+      } catch (_) { }
 
       if (res.ok && data?.success) {
         setApplySuccess(true);
@@ -743,13 +942,19 @@ export default function HomePage() {
     const sym = getCurrencySymbol(empCurrency);
     const suffix =
       empPayType === "Hourly" ? "/hr" :
-      empPayType === "Yearly salary" ? "/yr" :
-      empPayType === "Weekly" ? "/week" :
-      empPayType === "Daily" ? "/day" :
-      empPayType === "Per job / project" ? "/job" : "";
-    return `${sym}${empPayMin}${empPayMax ? `–${sym}${empPayMax}` : ""}${suffix}${
-      empPayType === "Commission" ? " commission" : ""
-    }${empPayType === "Base + commission" ? " + commission" : ""}`;
+        empPayType === "Yearly salary" ? "/yr" :
+          empPayType === "Weekly" ? "/week" :
+            empPayType === "Daily" ? "/day" :
+              empPayType === "Per job / project" ? "/job" : "";
+
+    const userPay = (empPayRate || empPayMin || "").trim();
+    if (!userPay) return `Competitive${suffix}`;
+
+    const hasSym = userPay.startsWith("$") || userPay.startsWith("£") || userPay.startsWith("₪") || userPay.startsWith("€") || userPay.startsWith("C$");
+    const hasSuffix = userPay.includes("/") || userPay.toLowerCase().includes("hr") || userPay.toLowerCase().includes("yr") || userPay.toLowerCase().includes("day");
+
+    return `${hasSym ? "" : sym}${userPay}${hasSuffix ? "" : suffix}${empPayType === "Commission" ? " commission" : ""
+      }${empPayType === "Base + commission" ? " + commission" : ""}`;
   };
 
   const handleChooseJobSeeker = () => {
@@ -762,7 +967,6 @@ export default function HomePage() {
     dismissEntryGate("#jobs");
     setTypeFilter("Same-Day / Short-term");
     setQuickCat("");
-    showToast("Showing same-day and short-term daily gigs.");
     setTimeout(() => {
       document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -776,7 +980,6 @@ export default function HomePage() {
     setCategoryFilter("");
     setCountryFilter("");
     setPayFilter("0");
-    showToast("Showing all approved community jobs.");
     setTimeout(() => {
       document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -802,7 +1005,7 @@ export default function HomePage() {
       if (typeof window !== "undefined") {
         history.replaceState(null, "", window.location.pathname);
       }
-    } catch (_) {}
+    } catch (_) { }
     setProfileGateOpen(false);
     setEmployerGateOpen(false);
     setEntryGateOpen(true);
@@ -850,13 +1053,13 @@ export default function HomePage() {
           sendWelcomeSms: true,
         }),
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          showToast("✓ SMS Job Alerts activated! Confirmation text sent.");
-        }
-      })
-      .catch(err => console.error("Error subscribing to alerts:", err));
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showToast("✓ SMS Job Alerts activated! Confirmation text sent.");
+          }
+        })
+        .catch(err => console.error("Error subscribing to alerts:", err));
     }
 
     const summaryParts = [
@@ -980,34 +1183,45 @@ export default function HomePage() {
     setScreeningQuestions(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmitEmployerJob = () => {
-    setEmployerSubmitted(true);
-    showToast("Job submitted to your team for review. No charge yet.");
-  };
+  const handlePublishJobDirect = (planType?: "standard" | "featured" | "sameday") => {
+    if (!empCompany.trim() || !empTitle.trim()) {
+      showToast("Please provide the business name and job title.");
+      return;
+    }
+    if (!empCountry || !empLocation.trim()) {
+      showToast("Please specify the job country and location.");
+      return;
+    }
+    const payVal = empPayRate.trim() || empPayMin.trim();
+    if (!payVal) {
+      showToast("Please specify the pay / compensation.");
+      return;
+    }
+    if (!empContactName.trim() || !empPhone.trim()) {
+      showToast("Please provide a contact person and phone number for verification.");
+      return;
+    }
 
-  const handleSimulateApproval = () => {
-    setEmployerSubmitted(false);
-    setEmployerApproved(true);
-    showToast("Prototype approval complete — publishing options are now available.");
-  };
+    showToast("✓ Proceeding to payment ($25) — job is now live!");
 
-  const handleChoosePublishPlan = (planName: string) => {
-    showToast(`${planName} selected — payment would open now.`);
-    // Add to active jobs list so employer sees their published job!
+    const effectivePay = Number(payVal.replace(/[^0-9.]/g, "")) || 25;
+    const finalSchedule = isSameDayGig ? "Same-Day / Short-term" : empSchedule;
+
     const newJob: JobItem = {
       id: Date.now(),
-      icon: "✨",
+      icon: isSameDayGig ? "⚡" : "💼",
       title: empTitle,
       company: empCompany,
       location: `${empLocation}, ${empCountry}`,
       country: empCountry,
-      category: empCategory,
-      pay: Number(empPayMin) || 25,
+      category: empCategory || (isSameDayGig ? "Same-Day / Short-term" : "General"),
+      pay: effectivePay,
       payText: getPayText(),
-      type: empSchedule,
+      type: finalSchedule,
       age: "Just now",
-      desc: empDesc
+      desc: empDesc || "Great opportunity with a heimish workplace."
     };
+
     setJobsList(prev => [newJob, ...prev]);
 
     // Dispatch matching SMS job alerts immediately
@@ -1016,22 +1230,37 @@ export default function HomePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ job: newJob }),
     })
-    .then(r => r.json())
-    .then(res => {
-      if (res.matchedCount > 0) {
-        setTimeout(() => {
-          showToast(`⚡ Dispatched SMS job alerts to ${res.matchedCount} matching candidate${res.matchedCount > 1 ? "s" : ""}!`);
-        }, 1200);
-      }
-    })
-    .catch(err => console.error("Error dispatching matching alerts:", err));
+      .then(r => r.json())
+      .then(res => {
+        if (res.matchedCount > 0) {
+          setTimeout(() => {
+            showToast(`⚡ Dispatched SMS job alerts to ${res.matchedCount} matching candidate${res.matchedCount > 1 ? "s" : ""}!`);
+          }, 1200);
+        }
+      })
+      .catch(err => console.error("Error dispatching matching alerts:", err));
 
     setTimeout(() => {
       setEmployerGateOpen(false);
       setShowBackToStart(true);
-      document.querySelector("#employer-process")?.scrollIntoView({ behavior: "smooth" });
-    }, 900);
+      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
+    }, 800);
   };
+
+  const handleChoosePublishPlan = (planName: string) => {
+    handlePublishJobDirect(planName.includes("Featured") ? "featured" : "standard");
+  };
+
+  // Unique de-duplicated Jobs list
+  const uniqueJobsList = useMemo(() => {
+    const seen = new Set<string>();
+    return jobsList.filter(j => {
+      const key = `${j.title.trim().toLowerCase()}|${j.company.trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [jobsList]);
 
   // Filter Jobs
   const filteredJobs = useMemo(() => {
@@ -1039,7 +1268,7 @@ export default function HomePage() {
     const loc = locationSearch.toLowerCase().trim();
     const min = Number(payFilter);
 
-    return jobsList.filter(j => {
+    return uniqueJobsList.filter(j => {
       const matchesQ =
         !q ||
         (j.title + " " + j.company + " " + j.category + " " + j.desc).toLowerCase().includes(q);
@@ -1053,7 +1282,7 @@ export default function HomePage() {
 
       return matchesQ && matchesLoc && matchesCountry && matchesPay && matchesType && matchesCat;
     });
-  }, [jobsList, searchInput, locationSearch, countryFilter, payFilter, typeFilter, quickCat, categoryFilter]);
+  }, [uniqueJobsList, searchInput, locationSearch, countryFilter, payFilter, typeFilter, quickCat, categoryFilter]);
 
   const handleClearFilters = () => {
     setSearchInput("");
@@ -1286,16 +1515,15 @@ export default function HomePage() {
                     <label>
                       Gender <span className="required-star">*</span>
                     </label>
-                    <select
+                    <DropdownWithCustom
                       id="profileGender"
                       value={profileGender}
-                      onChange={e => setProfileGender(e.target.value)}
-                    >
-                      <option value="">Choose one</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Prefer not to say">Prefer not to say</option>
-                    </select>
+                      onChange={setProfileGender}
+                      options={["Male", "Female", "Prefer not to say"]}
+                      allowEmpty
+                      emptyLabel="Choose one"
+                      customPlaceholder="Enter custom gender / title..."
+                    />
                   </div>
                   <div className="field">
                     <label>
@@ -1313,35 +1541,27 @@ export default function HomePage() {
                   </div>
                   <div className="field">
                     <label>Which best describes you?</label>
-                    <select
+                    <DropdownWithCustom
                       id="profileStage"
                       value={profileStage}
-                      onChange={e => setProfileStage(e.target.value)}
-                    >
-                      <option value="">Choose one</option>
-                      <option value="Bochur">Bochur</option>
-                      <option value="Yungerman">Yungerman</option>
-                      <option value="Man">Man</option>
-                      <option value="Girl">Girl</option>
-                      <option value="Woman">Woman</option>
-                      <option value="Other">Other</option>
-                    </select>
+                      onChange={setProfileStage}
+                      options={["Bochur", "Yungerman", "Man", "Girl", "Woman"]}
+                      allowEmpty
+                      emptyLabel="Choose one"
+                      customPlaceholder="e.g. Kollel Yungerman, Student..."
+                    />
                   </div>
                   <div className="field">
                     <label>Country</label>
-                    <select
+                    <DropdownWithCustom
                       id="profileCountry"
                       value={profileCountry}
-                      onChange={e => setProfileCountry(e.target.value)}
-                    >
-                      <option value="">Any country</option>
-                      <option value="United States">United States</option>
-                      <option value="United Kingdom">United Kingdom</option>
-                      <option value="Israel">Israel</option>
-                      <option value="Canada">Canada</option>
-                      <option value="Belgium">Belgium</option>
-                      <option value="Other">Other</option>
-                    </select>
+                      onChange={setProfileCountry}
+                      options={["United States", "United Kingdom", "Israel", "Canada", "Belgium"]}
+                      allowEmpty
+                      emptyLabel="Any country"
+                      customPlaceholder="Enter country..."
+                    />
                   </div>
                   <div className="field wide-field">
                     <label>City / area</label>
@@ -1381,59 +1601,195 @@ export default function HomePage() {
                   Choose the areas that interest you. You can change everything later.
                 </p>
                 <div className="field">
-                  <label>Job interests</label>
-                  <input
-                    id="interestSearch"
-                    placeholder="Search all job types..."
-                    style={{ marginBottom: "10px" }}
-                    value={interestSearchQuery}
-                    onChange={e => setInterestSearchQuery(e.target.value)}
-                  />
-                  <div className="choice-grid" id="jobInterestChoices">
-                    {INTEREST_OPTIONS.filter(opt =>
-                      opt.label.toLowerCase().includes(interestSearchQuery.toLowerCase())
-                    ).map(item => {
-                      const isSelected = profileInterests.includes(item.value);
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          className={`choice ${isSelected ? "selected" : ""}`}
-                          onClick={() => toggleInterest(item.value)}
-                        >
-                          {item.label}
-                        </button>
-                      );
-                    })}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ margin: 0, fontWeight: 700 }}>Job interests</label>
+                    {profileInterests.length > 0 && (
+                      <button
+                        type="button"
+                        style={{ border: "none", background: "none", color: "#1e72c8", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                        onClick={() => setProfileInterests([])}
+                      >
+                        Clear all ({profileInterests.length})
+                      </button>
+                    )}
                   </div>
+
+                  <div className="searchable-dropdown-wrapper">
+                    <div
+                      className="searchable-input-container"
+                      onClick={() => setInterestDropdownOpen(true)}
+                    >
+                      {profileInterests.map(val => {
+                        const opt = INTEREST_OPTIONS.find(o => o.value === val);
+                        return (
+                          <span key={val} className="selected-chip">
+                            <span>{opt?.label || val}</span>
+                            <button
+                              type="button"
+                              className="chip-remove-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleInterest(val);
+                              }}
+                              aria-label={`Remove ${val}`}
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        );
+                      })}
+                      <input
+                        id="interestSearch"
+                        className="searchable-input-field"
+                        placeholder={profileInterests.length === 0 ? "Type or add your own job interests (e.g. Accounting, HVAC, Secretary)..." : "Type to add your own or choose..."}
+                        value={interestSearchQuery}
+                        onChange={e => {
+                          setInterestSearchQuery(e.target.value);
+                          setInterestDropdownOpen(true);
+                        }}
+                        onFocus={() => setInterestDropdownOpen(true)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && interestSearchQuery.trim()) {
+                            e.preventDefault();
+                            const customVal = interestSearchQuery.trim();
+                            if (!profileInterests.includes(customVal)) {
+                              setProfileInterests(prev => [...prev, customVal]);
+                            }
+                            setInterestSearchQuery("");
+                            setInterestDropdownOpen(false);
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {interestDropdownOpen && (
+                      <>
+                        <div
+                          style={{ position: "fixed", inset: 0, zIndex: 1050 }}
+                          onClick={() => setInterestDropdownOpen(false)}
+                        />
+                        <div className="searchable-dropdown-menu">
+                          {/* Option to add custom entered interest */}
+                          {interestSearchQuery.trim().length > 0 && (
+                            <button
+                              type="button"
+                              className="searchable-dropdown-item"
+                              style={{ background: "#f0fdf4", borderBottom: "1.5px solid #bbf7d0", color: "#166534", fontWeight: 800 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const customVal = interestSearchQuery.trim();
+                                if (!profileInterests.includes(customVal)) {
+                                  setProfileInterests(prev => [...prev, customVal]);
+                                }
+                                setInterestSearchQuery("");
+                                setInterestDropdownOpen(false);
+                              }}
+                            >
+                              <span>➕ Add custom interest: <strong>"{interestSearchQuery.trim()}"</strong></span>
+                              <span style={{ fontSize: "11px", background: "#16a34a", color: "#ffffff", padding: "2px 8px", borderRadius: "999px", fontWeight: 800 }}>
+                                Add your own
+                              </span>
+                            </button>
+                          )}
+
+                          {(() => {
+                            const filtered = INTEREST_OPTIONS.filter(opt =>
+                              opt.label.toLowerCase().includes(interestSearchQuery.toLowerCase()) ||
+                              opt.value.toLowerCase().includes(interestSearchQuery.toLowerCase())
+                            );
+                            if (filtered.length === 0 && !interestSearchQuery.trim()) {
+                              return (
+                                <div className="searchable-dropdown-empty">
+                                  Type any job interest or role you want to add.
+                                </div>
+                              );
+                            }
+                            return filtered.map(item => {
+                              const isSelected = profileInterests.includes(item.value);
+                              return (
+                                <button
+                                  key={item.value}
+                                  type="button"
+                                  className={`searchable-dropdown-item ${isSelected ? "is-selected" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleInterest(item.value);
+                                    setInterestSearchQuery("");
+                                  }}
+                                >
+                                  <span>{item.label}</span>
+                                  {isSelected ? (
+                                    <span style={{ color: "#1e72c8", fontWeight: 800 }}>✓ Selected</span>
+                                  ) : (
+                                    <span style={{ color: "#8da4ac", fontSize: "12px" }}>+ Add</span>
+                                  )}
+                                </button>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {profileInterests.length === 0 && (
+                    <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontSize: "12px", color: "#6e8086", fontWeight: 700 }}>Popular:</span>
+                      {[
+                        { label: "🧾 Accounting", val: "Accounting" },
+                        { label: "🗂️ Admin", val: "Administration" },
+                        { label: "📈 Sales", val: "Sales" },
+                        { label: "❄️ HVAC", val: "HVAC" },
+                        { label: "🚐 Driving", val: "Driving" },
+                        { label: "📦 Warehouse", val: "Warehouse" }
+                      ].map(pop => (
+                        <button
+                          key={pop.val}
+                          type="button"
+                          onClick={() => toggleInterest(pop.val)}
+                          style={{
+                            border: "1px solid #dce8e4",
+                            background: "#f8fafc",
+                            borderRadius: "6px",
+                            padding: "3px 8px",
+                            fontSize: "12px",
+                            color: "#334155",
+                            cursor: "pointer"
+                          }}
+                        >
+                          {pop.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="form-grid">
                   <div className="field">
                     <label>Schedule</label>
-                    <select
+                    <DropdownWithCustom
                       id="profileSchedule"
                       value={profileSchedule}
-                      onChange={e => setProfileSchedule(e.target.value)}
-                    >
-                      <option value="">Any schedule</option>
-                      <option value="Full-time">Full-time</option>
-                      <option value="Part-time">Part-time</option>
-                      <option value="Evenings">Evenings</option>
-                      <option value="Flexible">Flexible</option>
-                    </select>
+                      onChange={setProfileSchedule}
+                      options={["Full-time", "Part-time", "Evenings", "Flexible"]}
+                      allowEmpty
+                      emptyLabel="Any schedule"
+                      customPlaceholder="e.g. Morning Seder compatible, Sundays only..."
+                    />
                   </div>
                   <div className="field">
                     <label>Minimum pay</label>
-                    <select
+                    <DropdownWithCustom
                       id="profileMinPay"
                       value={profileMinPay}
-                      onChange={e => setProfileMinPay(e.target.value)}
-                    >
-                      <option value="0">Any pay</option>
-                      <option value="20">$20+/hr</option>
-                      <option value="25">$25+/hr</option>
-                      <option value="30">$30+/hr</option>
-                    </select>
+                      onChange={setProfileMinPay}
+                      options={[
+                        { value: "0", label: "Any pay" },
+                        { value: "20", label: "$20+/hr" },
+                        { value: "25", label: "$25+/hr" },
+                        { value: "30", label: "$30+/hr" },
+                      ]}
+                      customPlaceholder="Enter desired minimum pay..."
+                    />
                   </div>
                 </div>
 
@@ -1500,7 +1856,7 @@ export default function HomePage() {
         aria-modal="true"
         aria-labelledby="employerTitle"
       >
-        <div className="employer-wrap">
+        <div className="employer-wrap" style={{ maxWidth: "860px" }}>
           <div className="employer-top">
             <button
               type="button"
@@ -1511,1025 +1867,795 @@ export default function HomePage() {
                 setEntryGateOpen(true);
               }}
             >
-              ← Back
+              ← Back to Choice
             </button>
-            <div className="employer-progress" aria-label="Employer posting progress">
-              <div className={`pstep ${employerStep >= 1 ? "on" : ""}`} id="ep1">
-                <span>Job</span>
-              </div>
-              <div className={`pstep ${employerStep >= 2 ? "on" : ""}`} id="ep2">
-                <span>Work & Pay</span>
-              </div>
-              <div className={`pstep ${employerStep >= 3 ? "on" : ""}`} id="ep3">
-                <span>Candidate</span>
-              </div>
-              <div className={`pstep ${employerStep >= 4 ? "on" : ""}`} id="ep4">
-                <span>Contact</span>
-              </div>
-              <div className={`pstep ${employerStep >= 5 ? "on" : ""}`} id="ep5">
-                <span>Review</span>
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={() => setEmployerGateOpen(false)}
+                style={{ padding: "6px 12px", fontSize: "13px" }}
+              >
+                ✕ Close
+              </button>
             </div>
           </div>
 
-          <div className="employer-card">
-            {/* Step 1: Business and role */}
-            {employerStep === 1 && (
-              <div className="employer-step on" id="employerStep1">
-                <div className="employer-intro">
+          <div className="employer-card employer-single-card" style={{ padding: "30px 32px" }}>
+            <div className="employer-intro" style={{ marginBottom: "24px" }}>
+              <div>
+                <span className="privacy-chip">💼 Post a Job · Direct & Verified</span>
+                <h2 id="employerTitle" style={{ fontSize: "28px", marginTop: "8px", fontWeight: 900, color: "#0d2c38" }}>
+                  What are you hiring for?
+                </h2>
+                <p className="profile-lead" style={{ margin: "4px 0 0", color: "#5d7279" }}>
+                  Fill out the job details below on this single page. Your listing publishes directly to local candidates.
+                </p>
+              </div>
+              <span className="time-badge">⚡ Takes ~2 minutes</span>
+            </div>
+
+            {/* SECTION 1: BUSINESS & ROLE */}
+            <div className="employer-section-block">
+              <div className="employer-section-header">
+                <span className="sicon">🏢</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 850 }}>1. Business and Role</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#5d7279" }}>The basic information applicants see first.</p>
+                </div>
+              </div>
+              <div className="form-grid">
+                <div className="field">
+                  <label>
+                    Business / employer name <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="empCompany"
+                    placeholder="Enter your business or employer name"
+                    value={empCompany}
+                    onChange={e => setEmpCompany(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>How many people are you hiring?</label>
+                  <DropdownWithCustom
+                    id="empOpenings"
+                    value={empOpenings}
+                    onChange={setEmpOpenings}
+                    options={["1 person", "2 people", "3–5 people", "6–10 people", "10+ people"]}
+                    customPlaceholder="e.g. Multiple crews, 15+ workers..."
+                  />
+                </div>
+                <div className="field wide-field">
+                  <label>
+                    Job title <span className="required-star">*</span>
+                    <span className="helper">Use the title people would actually search for.</span>
+                  </label>
+                  <input
+                    id="empTitle"
+                    list="jobTitleSuggestions"
+                    placeholder="e.g. HVAC Technician, Bookkeeper, Driver"
+                    value={empTitle}
+                    onChange={e => setEmpTitle(e.target.value)}
+                  />
+                  <datalist id="jobTitleSuggestions">
+                    <option value="HVAC Technician" />
+                    <option value="HVAC Helper" />
+                    <option value="Bookkeeper" />
+                    <option value="Office Manager" />
+                    <option value="Sales Representative" />
+                    <option value="Customer Service Representative" />
+                    <option value="Dispatcher" />
+                    <option value="Route Driver" />
+                    <option value="Warehouse Worker" />
+                    <option value="Warehouse Manager" />
+                    <option value="Property Manager" />
+                    <option value="Graphic Designer" />
+                    <option value="IT Support" />
+                    <option value="Electrician" />
+                    <option value="Plumber" />
+                    <option value="Construction Helper" />
+                    <option value="Teacher" />
+                    <option value="Secretary" />
+                    <option value="Kitchen Manager" />
+                  </datalist>
+                </div>
+                <div className="field">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <label style={{ margin: 0 }}>
+                      Job category <span className="required-star">*</span>
+                    </label>
+                    {empCategory && (
+                      <button
+                        type="button"
+                        style={{ border: "none", background: "none", color: "#1e72c8", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                        onClick={() => {
+                          setEmpCategory("");
+                          setEmpCatSearchQuery("");
+                        }}
+                      >
+                        Change
+                      </button>
+                    )}
+                  </div>
+                  <div className="searchable-dropdown-wrapper">
+                    <div
+                      className="searchable-input-container"
+                      onClick={() => setEmpCatDropdownOpen(true)}
+                    >
+                      {empCategory ? (
+                        <span className="selected-chip" style={{ background: "#e0f2fe", borderColor: "#7dd3fc", color: "#0369a1" }}>
+                          <span>{empCategory}</span>
+                          <button
+                            type="button"
+                            className="chip-remove-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEmpCategory("");
+                              setEmpCatSearchQuery("");
+                            }}
+                            aria-label="Clear category"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ) : null}
+                      <input
+                        id="empCategorySearch"
+                        className="searchable-input-field"
+                        placeholder={empCategory ? "Type to change or type your own..." : "Type or click to choose category, or type your own (e.g. Kosher Bakery, HVAC, Dispatcher)..."}
+                        value={empCatSearchQuery}
+                        onChange={e => {
+                          setEmpCatSearchQuery(e.target.value);
+                          setEmpCatDropdownOpen(true);
+                        }}
+                        onFocus={() => setEmpCatDropdownOpen(true)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && empCatSearchQuery.trim()) {
+                            e.preventDefault();
+                            setEmpCategory(empCatSearchQuery.trim());
+                            setEmpCatSearchQuery("");
+                            setEmpCatDropdownOpen(false);
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {empCatDropdownOpen && (
+                      <>
+                        <div
+                          style={{ position: "fixed", inset: 0, zIndex: 1050 }}
+                          onClick={() => setEmpCatDropdownOpen(false)}
+                        />
+                        <div className="searchable-dropdown-menu">
+                          {/* Option to use custom entered category */}
+                          {empCatSearchQuery.trim().length > 0 && (
+                            <button
+                              type="button"
+                              className="searchable-dropdown-item"
+                              style={{ background: "#f0fdf4", borderBottom: "1.5px solid #bbf7d0", color: "#166534", fontWeight: 800 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEmpCategory(empCatSearchQuery.trim());
+                                setEmpCatSearchQuery("");
+                                setEmpCatDropdownOpen(false);
+                              }}
+                            >
+                              <span>➕ Use custom category: <strong>"{empCatSearchQuery.trim()}"</strong></span>
+                              <span style={{ fontSize: "11px", background: "#16a34a", color: "#ffffff", padding: "2px 8px", borderRadius: "999px", fontWeight: 800 }}>
+                                Use your own
+                              </span>
+                            </button>
+                          )}
+
+                          {(() => {
+                            const filtered = EMPLOYER_CATEGORY_OPTIONS.filter(opt =>
+                              opt.label.toLowerCase().includes(empCatSearchQuery.toLowerCase()) ||
+                              opt.value.toLowerCase().includes(empCatSearchQuery.toLowerCase())
+                            );
+                            if (filtered.length === 0 && !empCatSearchQuery.trim()) {
+                              return (
+                                <div className="searchable-dropdown-empty">
+                                  Type any category or select from the list.
+                                </div>
+                              );
+                            }
+                            return filtered.map(item => {
+                              const isSelected = empCategory === item.value;
+                              return (
+                                <button
+                                  key={item.value}
+                                  type="button"
+                                  className={`searchable-dropdown-item ${isSelected ? "is-selected" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEmpCategory(item.value);
+                                    setEmpCatSearchQuery("");
+                                    setEmpCatDropdownOpen(false);
+                                  }}
+                                >
+                                  <span>{item.label}</span>
+                                  {isSelected ? (
+                                    <span style={{ color: "#1e72c8", fontWeight: 800 }}>✓ Selected</span>
+                                  ) : (
+                                    <span style={{ color: "#8da4ac", fontSize: "12px" }}>Select</span>
+                                  )}
+                                </button>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Seniority</label>
+                  <DropdownWithCustom
+                    id="empSeniority"
+                    value={empSeniority}
+                    onChange={setEmpSeniority}
+                    options={[
+                      "Entry level / willing to train",
+                      "Some experience",
+                      "Experienced",
+                      "Supervisor / manager",
+                      "Senior / specialist",
+                    ]}
+                    customPlaceholder="e.g. Senior Partner, Lead Foreman..."
+                  />
+                </div>
+              </div>
+              <div className="smart-help">
+                <span>✨</span>
+                <div>
+                  <b>Not sure what category to choose?</b>
+                  <br />
+                  Type the job title and we can suggest a category.
+                </div>
+                <button
+                  className="btn btn-light"
+                  type="button"
+                  id="suggestCategory"
+                  onClick={handleSuggestCategory}
+                >
+                  Suggest
+                </button>
+              </div>
+              <div className="form-section">
+                <div className="form-section-title">
+                  <span className="sicon">📝</span>
                   <div>
-                    <span className="privacy-chip">💼 Employer · Step 1 of 5</span>
-                    <h2 id="employerTitle">What are you hiring for?</h2>
-                    <p className="profile-lead">
-                      Start simple. Tell us the role and we’ll guide you through the rest.
+                    <h3>What will this person do?</h3>
+                    <p>Plain language works best. Applicants should understand the job in a few seconds.</p>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>
+                    Main responsibilities <span className="required-star">*</span>
+                    <span className="helper">
+                      Example: Install mini-splits, run line sets, help on service calls, keep work area clean.
+                    </span>
+                  </label>
+                  <textarea
+                    id="empDesc"
+                    rows={5}
+                    placeholder="Describe the main day-to-day work..."
+                    value={empDesc}
+                    onChange={e => setEmpDesc(e.target.value)}
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: WORK SETUP, SAME-DAY HIRING & PAY */}
+            <div className="employer-section-block">
+              <div className="employer-section-header">
+                <span className="sicon">📍</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 850 }}>2. Work Setup, Schedule & Pay</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#5d7279" }}>Location, employment type, same-day hiring, and compensation.</p>
+                </div>
+              </div>
+
+              {/* SAME-DAY HIRING TOGGLE CARD */}
+              <div
+                className={`same-day-banner-card ${isSameDayGig ? "active" : ""}`}
+                id="sameDayHiringToggleCard"
+                onClick={() => {
+                  const nextVal = !isSameDayGig;
+                  setIsSameDayGig(nextVal);
+                  if (nextVal) {
+                    setEmpSchedule("Same-Day / Short-term");
+                  } else {
+                    if (empSchedule === "Same-Day / Short-term") {
+                      setEmpSchedule("Full-time");
+                    }
+                  }
+                }}
+                style={{ cursor: "pointer", marginBottom: "18px" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "14px", width: "100%" }}>
+                  <span style={{ fontSize: "28px", lineHeight: 1 }}>⚡</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <strong style={{ fontSize: "15.5px", color: isSameDayGig ? "#14532d" : "#0f2e24", fontWeight: 850 }}>
+                        Same-Day / Immediate Hiring
+                      </strong>
+                      <span className={`badge-urgent-tag ${isSameDayGig ? "active" : ""}`}>
+                        {isSameDayGig ? "⚡ URGENT SAME-DAY GIG" : "URGENT GIG"}
+                      </span>
+                    </div>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: isSameDayGig ? "#166534" : "#475569", lineHeight: 1.5 }}>
+                      Need someone today or right away? (Event setup, warehouse rush, relief driver, emergency repair helper).
+                      When enabled, this job is highlighted with a Same-Day badge and alerted to daily gig seekers immediately.
                     </p>
                   </div>
-                  <span className="time-badge">About 3–5 minutes</span>
-                </div>
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">🏢</span>
-                    <div>
-                      <h3>Business and role</h3>
-                      <p>The basic information applicants see first.</p>
-                    </div>
-                  </div>
-                  <div className="form-grid">
-                    <div className="field">
-                      <label>
-                        Business / employer name <span className="required-star">*</span>
-                      </label>
-                      <input
-                        id="empCompany"
-                        placeholder="e.g. MBD Heating"
-                        value={empCompany}
-                        onChange={e => setEmpCompany(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>How many people are you hiring?</label>
-                      <select
-                        id="empOpenings"
-                        value={empOpenings}
-                        onChange={e => setEmpOpenings(e.target.value)}
-                      >
-                        <option>1 person</option>
-                        <option>2 people</option>
-                        <option>3–5 people</option>
-                        <option>6–10 people</option>
-                        <option>10+ people</option>
-                      </select>
-                    </div>
-                    <div className="field wide-field">
-                      <label>
-                        Job title <span className="required-star">*</span>
-                        <span className="helper">Use the title people would actually search for.</span>
-                      </label>
-                      <input
-                        id="empTitle"
-                        list="jobTitleSuggestions"
-                        placeholder="e.g. HVAC Technician, Bookkeeper, Driver"
-                        value={empTitle}
-                        onChange={e => setEmpTitle(e.target.value)}
-                      />
-                      <datalist id="jobTitleSuggestions">
-                        <option value="HVAC Technician" />
-                        <option value="HVAC Helper" />
-                        <option value="Bookkeeper" />
-                        <option value="Office Manager" />
-                        <option value="Sales Representative" />
-                        <option value="Customer Service Representative" />
-                        <option value="Dispatcher" />
-                        <option value="Route Driver" />
-                        <option value="Warehouse Worker" />
-                        <option value="Warehouse Manager" />
-                        <option value="Property Manager" />
-                        <option value="Graphic Designer" />
-                        <option value="IT Support" />
-                        <option value="Electrician" />
-                        <option value="Plumber" />
-                        <option value="Construction Helper" />
-                        <option value="Teacher" />
-                        <option value="Secretary" />
-                        <option value="Kitchen Manager" />
-                      </datalist>
-                    </div>
-                    <div className="field">
-                      <label>
-                        Job category <span className="required-star">*</span>
-                        <span className="helper">Not sure? Choose “Help me choose.”</span>
-                      </label>
-                      <select
-                        id="empCategory"
-                        value={empCategory}
-                        onChange={e => setEmpCategory(e.target.value)}
-                      >
-                        <option value="">Select a category</option>
-                        <option value="Help me choose">Help me choose</option>
-                        <option value="Accounting & Finance">Accounting & Finance</option>
-                        <option value="Administration & Office">Administration & Office</option>
-                        <option value="Sales">Sales</option>
-                        <option value="Customer Service">Customer Service</option>
-                        <option value="HVAC">HVAC</option>
-                        <option value="Plumbing">Plumbing</option>
-                        <option value="Electrical">Electrical</option>
-                        <option value="Construction & Trades">Construction & Trades</option>
-                        <option value="Driving & Delivery">Driving & Delivery</option>
-                        <option value="Warehouse & Logistics">Warehouse & Logistics</option>
-                        <option value="IT & Technology">IT & Technology</option>
-                        <option value="Design & Creative">Design & Creative</option>
-                        <option value="Marketing">Marketing</option>
-                        <option value="Real Estate & Property Management">Real Estate & Property Management</option>
-                        <option value="Healthcare">Healthcare</option>
-                        <option value="Education">Education</option>
-                        <option value="Food Service">Food Service</option>
-                        <option value="Retail">Retail</option>
-                        <option value="Security">Security</option>
-                        <option value="Management">Management</option>
-                        <option value="Cleaning & Maintenance">Cleaning & Maintenance</option>
-                        <option value="Manufacturing">Manufacturing</option>
-                        <option value="Legal">Legal</option>
-                        <option value="Nonprofit / Community">Nonprofit / Community</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Seniority</label>
-                      <select
-                        id="empSeniority"
-                        value={empSeniority}
-                        onChange={e => setEmpSeniority(e.target.value)}
-                      >
-                        <option>Entry level / willing to train</option>
-                        <option>Some experience</option>
-                        <option>Experienced</option>
-                        <option>Supervisor / manager</option>
-                        <option>Senior / specialist</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="smart-help">
-                    <span>✨</span>
-                    <div>
-                      <b>Not sure what category to choose?</b>
-                      <br />
-                      Type the job title and we can suggest a category.
-                    </div>
-                    <button
-                      className="btn btn-light"
-                      type="button"
-                      id="suggestCategory"
-                      onClick={handleSuggestCategory}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                    <div
+                      className={`toggle-switch-box ${isSameDayGig ? "active on" : ""}`}
+                      id="sameDayToggleBtn"
+                      role="switch"
+                      aria-checked={isSameDayGig}
                     >
-                      Suggest
-                    </button>
+                      <span className="toggle-switch-knob" />
+                    </div>
+                    <span className={`same-day-status-pill ${isSameDayGig ? "on" : "off"}`}>
+                      {isSameDayGig ? "✓ ON" : "OFF"}
+                    </span>
                   </div>
                 </div>
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">📝</span>
-                    <div>
-                      <h3>What will this person do?</h3>
-                      <p>Plain language works best. Applicants should understand the job in a few seconds.</p>
-                    </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="field">
+                  <label>
+                    Country <span className="required-star">*</span>
+                  </label>
+                  <DropdownWithCustom
+                    id="empCountry"
+                    value={empCountry}
+                    onChange={setEmpCountry}
+                    options={["United States", "United Kingdom", "Israel", "Canada", "Belgium"]}
+                    allowEmpty
+                    emptyLabel="Choose country"
+                    customPlaceholder="Enter country..."
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    City / location <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="empLocation"
+                    placeholder="e.g. Lakewood, NJ or Flatbush, Brooklyn"
+                    value={empLocation}
+                    onChange={e => setEmpLocation(e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Work arrangement</label>
+                  <DropdownWithCustom
+                    id="empArrangement"
+                    value={empArrangement}
+                    onChange={setEmpArrangement}
+                    options={["On-site", "Hybrid", "Remote", "On the road / driving"]}
+                    customPlaceholder="e.g. Flexible hybrid, Field work..."
+                  />
+                </div>
+
+                {/* EMPLOYMENT TYPE (NO INTERN) */}
+                <div className="field">
+                  <label>Employment type</label>
+                  <DropdownWithCustom
+                    id="empSchedule"
+                    value={empSchedule}
+                    onChange={(val) => {
+                      setEmpSchedule(val);
+                      if (val === "Same-Day / Short-term") {
+                        setIsSameDayGig(true);
+                      } else if (isSameDayGig) {
+                        setIsSameDayGig(false);
+                      }
+                    }}
+                    options={[
+                      "Full-time",
+                      "Part-time",
+                      "Temporary",
+                      "Seasonal",
+                      "Contract / freelance",
+                      "Flexible",
+                      "Same-Day / Short-term",
+                    ]}
+                    customPlaceholder="e.g. Fridays only, Chol Hamoed gig..."
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Typical hours (optional)</label>
+                  <input
+                    id="empHours"
+                    placeholder="e.g. 9:00 AM–5:00 PM"
+                    value={empHours}
+                    onChange={e => setEmpHours(e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Start date</label>
+                  <DropdownWithCustom
+                    id="empStart"
+                    value={empStart}
+                    onChange={setEmpStart}
+                    options={[
+                      "As soon as possible",
+                      "Immediate / Today (Same-Day)",
+                      "Within 2 weeks",
+                      "Within a month",
+                      "Flexible",
+                    ]}
+                    customPlaceholder="e.g. Starting Elul Zman, Nov 1..."
+                  />
+                </div>
+
+                {/* SINGLE PAY FIELD (REPLACING MIN & MAX) */}
+                <div className="field">
+                  <label>Currency</label>
+                  <DropdownWithCustom
+                    id="empCurrency"
+                    value={empCurrency}
+                    onChange={setEmpCurrency}
+                    options={["USD $", "GBP £", "ILS ₪", "CAD C$", "EUR €"]}
+                    customPlaceholder="e.g. AUD, CHF..."
+                  />
+                </div>
+
+                <div className="field" style={{ gridColumn: "span 2" }}>
+                  <label>
+                    Pay / Rate <span className="required-star">*</span>
+                    <span className="helper">Enter the compensation (e.g. 25, $25–$35/hr, $150 flat, $65k/year)</span>
+                  </label>
+                  <input
+                    id="empPayRate"
+                    placeholder="e.g. 30 (or $25–$35/hr, $150 flat, $65,000/yr)"
+                    value={empPayRate || empPayMin}
+                    onChange={e => {
+                      setEmpPayRate(e.target.value);
+                      setEmpPayMin(e.target.value);
+                    }}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Pay Type</label>
+                  <DropdownWithCustom
+                    id="empPayType"
+                    value={empPayType}
+                    onChange={setEmpPayType}
+                    options={[
+                      "Hourly",
+                      "Daily",
+                      "Yearly salary",
+                      "Weekly",
+                      "Per job / project",
+                      "Commission",
+                      "Base + commission",
+                    ]}
+                    customPlaceholder="e.g. Monthly stipend, Hourly + bonus..."
+                  />
+                </div>
+              </div>
+
+              {/* BENEFITS / EXTRAS */}
+              <div style={{ marginTop: "14px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "12px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "#6e8188",
+                    fontWeight: 900,
+                    margin: "4px 0 8px"
+                  }}
+                >
+                  Benefits / perks (optional)
+                </label>
+                <div className="toggle-row" id="benefitChoices">
+                  {[
+                    "Paid time off",
+                    "Health insurance",
+                    "Paid holidays",
+                    "Commission / bonus",
+                    "Transportation help",
+                    "Meals provided",
+                    "Training provided",
+                    "Shomer Shabbos & Yom Tov"
+                  ].map(benefit => {
+                    const isSelected = empBenefits.includes(benefit);
+                    return (
+                      <button
+                        key={benefit}
+                        type="button"
+                        className={`toggle-pill ${isSelected ? "selected" : ""}`}
+                        onClick={() => {
+                          setEmpBenefits(prev =>
+                            prev.includes(benefit) ? prev.filter(x => x !== benefit) : [...prev, benefit]
+                          );
+                        }}
+                      >
+                        {benefit}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: CANDIDATE QUALIFICATIONS */}
+            <div className="employer-section-block">
+              <div className="employer-section-header">
+                <span className="sicon">🎯</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 850 }}>3. Candidate Qualifications</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#5d7279" }}>Choose requirements that matter for doing the job well.</p>
+                </div>
+              </div>
+              <div className="form-grid">
+                <div className="field">
+                  <label>Experience needed</label>
+                  <DropdownWithCustom
+                    id="empExperience"
+                    value={empExperience}
+                    onChange={setEmpExperience}
+                    options={[
+                      "No experience needed",
+                      "Some experience preferred",
+                      "1+ year required",
+                      "2–3 years required",
+                      "5+ years required",
+                    ]}
+                    customPlaceholder="e.g. Smicha required, Active license..."
+                  />
+                </div>
+                <div className="field">
+                  <label>Will you train?</label>
+                  <DropdownWithCustom
+                    id="empTrain"
+                    value={empTrain}
+                    onChange={setEmpTrain}
+                    options={[
+                      "Yes, full training",
+                      "Some training",
+                      "No, must already know the job",
+                    ]}
+                    customPlaceholder="e.g. Apprenticeship program, Paid trial..."
+                  />
+                </div>
+                <div className="field">
+                  <label>Driver’s license</label>
+                  <DropdownWithCustom
+                    id="empLicense"
+                    value={empLicense}
+                    onChange={setEmpLicense}
+                    options={[
+                      "Not needed",
+                      "Preferred",
+                      "Required",
+                      "Required because driving is part of the job",
+                    ]}
+                    customPlaceholder="e.g. CDL Class B, Clean driving record..."
+                  />
+                </div>
+                <div className="field">
+                  <label>Own vehicle</label>
+                  <DropdownWithCustom
+                    id="empVehicle"
+                    value={empVehicle}
+                    onChange={setEmpVehicle}
+                    options={["Not needed", "Preferred", "Required"]}
+                    customPlaceholder="e.g. Cargo van or pickup truck..."
+                  />
+                </div>
+                <div className="field">
+                  <label>Language needs</label>
+                  <input
+                    id="empLanguages"
+                    placeholder="e.g. English, Yiddish, Hebrew"
+                    value={empLanguages}
+                    onChange={e => setEmpLanguages(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label>Certification / license</label>
+                  <input
+                    id="empCertification"
+                    placeholder="e.g. CDL, HVAC certification, QuickBooks — or leave blank"
+                    value={empCertification}
+                    onChange={e => setEmpCertification(e.target.value)}
+                  />
+                </div>
+                <div className="field wide-field">
+                  <label>Skills you want</label>
+                  <input
+                    id="empSkills"
+                    placeholder="e.g. customer service, Excel, mini-splits, phone skills"
+                    value={empSkills}
+                    onChange={e => setEmpSkills(e.target.value)}
+                  />
+                </div>
+                <div className="field wide-field">
+                  <label>Physical or job-specific requirements</label>
+                  <textarea
+                    id="empPhysical"
+                    rows={3}
+                    placeholder="Only include things needed for the work, e.g. lift 50 lb, work on ladders, travel between job sites."
+                    value={empPhysical}
+                    onChange={e => setEmpPhysical(e.target.value)}
+                  ></textarea>
+                </div>
+              </div>
+              <div className="employer-note">
+                <b>Important:</b> Keep hiring requirements job-related and compliant with local employment laws.
+              </div>
+
+              <div style={{ marginTop: "18px" }}>
+                <div className="form-grid">
+                  <div className="field">
+                    <label>Resume</label>
+                    <DropdownWithCustom
+                      id="empResume"
+                      value={empResume}
+                      onChange={setEmpResume}
+                      options={["Not required", "Optional", "Required"]}
+                      customPlaceholder="e.g. References only, Work samples..."
+                    />
                   </div>
                   <div className="field">
-                    <label>
-                      Main responsibilities <span className="required-star">*</span>
-                      <span className="helper">
-                        Example: Install mini-splits, run line sets, help on service calls, keep work area clean.
-                      </span>
-                    </label>
-                    <textarea
-                      id="empDesc"
-                      rows={5}
-                      placeholder="Describe the main day-to-day work..."
-                      value={empDesc}
-                      onChange={e => setEmpDesc(e.target.value)}
-                    ></textarea>
+                    <label>Application style</label>
+                    <DropdownWithCustom
+                      id="empApplyStyle"
+                      value={empApplyStyle}
+                      onChange={setEmpApplyStyle}
+                      options={[
+                        "Quick apply — name + basic profile",
+                        "Profile + work experience",
+                        "Full application",
+                      ]}
+                      customPlaceholder="e.g. Phone screening first, Walk-in..."
+                    />
                   </div>
                 </div>
-                <div className="profile-actions">
-                  <span></span>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    id="employerNext"
-                    onClick={handleEmployerNext1}
-                  >
-                    Work & Pay →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Location, schedule & pay */}
-            {employerStep === 2 && (
-              <div className="employer-step on" id="employerStep2">
-                <span className="privacy-chip">📍 Employer · Step 2 of 5</span>
-                <h2>Where, when, and how much?</h2>
-                <p className="profile-lead">
-                  These are the details job seekers usually want to know before they apply.
-                </p>
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">📍</span>
-                    <div>
-                      <h3>Location and work setup</h3>
-                      <p>Use any city or country. The platform is not limited to the U.S.</p>
-                    </div>
-                  </div>
-                  <div className="form-grid">
-                    <div className="field">
-                      <label>
-                        Country <span className="required-star">*</span>
-                      </label>
-                      <select
-                        id="empCountry"
-                        value={empCountry}
-                        onChange={e => setEmpCountry(e.target.value)}
-                      >
-                        <option value="">Choose country</option>
-                        <option>United States</option>
-                        <option>United Kingdom</option>
-                        <option>Israel</option>
-                        <option>Canada</option>
-                        <option>Belgium</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>
-                        City / neighborhood / area <span className="required-star">*</span>
-                      </label>
-                      <input
-                        id="empLocation"
-                        placeholder="e.g. Lakewood, Boro Park, London, Jerusalem"
-                        value={empLocation}
-                        onChange={e => setEmpLocation(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "12px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      color: "#6e8188",
-                      fontWeight: 900,
-                      margin: "4px 0 8px"
-                    }}
-                  >
-                    Work arrangement
-                  </label>
-                  <div className="option-grid" id="workArrangement">
-                    {["On-site", "Hybrid", "Remote", "Travel / field work"].map(item => (
-                      <button
-                        key={item}
-                        type="button"
-                        className={`option-card ${empArrangement === item ? "selected" : ""}`}
-                        onClick={() => setEmpArrangement(item)}
-                      >
-                        {item === "On-site" ? "🏢 On-site" : item === "Hybrid" ? "🔁 Hybrid" : item === "Remote" ? "🏠 Remote" : "🚐 Travel / field"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">🕒</span>
-                    <div>
-                      <h3>Schedule</h3>
-                      <p>Give enough detail so people know whether the job fits their life.</p>
-                    </div>
-                  </div>
-                  <div className="form-grid">
-                    <div className="field">
-                      <label>Employment type</label>
-                      <select
-                        id="empSchedule"
-                        value={empSchedule}
-                        onChange={e => setEmpSchedule(e.target.value)}
-                      >
-                        <option>Full-time</option>
-                        <option>Part-time</option>
-                        <option>Temporary</option>
-                        <option>Seasonal</option>
-                        <option>Contract / freelance</option>
-                        <option>Internship / training</option>
-                        <option>Flexible</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Typical hours</label>
-                      <input
-                        id="empHours"
-                        placeholder="e.g. 8:00 AM–5:00 PM"
-                        value={empHours}
-                        onChange={e => setEmpHours(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Start date</label>
-                      <select
-                        id="empStart"
-                        value={empStart}
-                        onChange={e => setEmpStart(e.target.value)}
-                      >
-                        <option>As soon as possible</option>
-                        <option>Within 2 weeks</option>
-                        <option>Within a month</option>
-                        <option>Specific date</option>
-                        <option>Flexible</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Specific start date (optional)</label>
-                      <input
-                        id="empStartDate"
-                        type="date"
-                        value={empStartDate}
-                        onChange={e => setEmpStartDate(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "12px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      color: "#6e8188",
-                      fontWeight: 900,
-                      margin: "4px 0 8px"
-                    }}
-                  >
-                    Typical work days
-                  </label>
-                  <div className="days-grid" id="workDays">
-                    {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Flexible"].map(day => {
-                      const isSelected = empDays.includes(day);
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          className={`day-btn ${isSelected ? "selected" : ""}`}
-                          onClick={() => {
-                            setEmpDays(prev =>
-                              prev.includes(day) ? prev.filter(x => x !== day) : [...prev, day]
-                            );
-                          }}
-                        >
-                          {day === "Flexible" ? "Flexible" : day.slice(0, 3)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">💵</span>
-                    <div>
-                      <h3>Pay and benefits</h3>
-                      <p>Clear pay gets better applicants.</p>
-                    </div>
-                  </div>
-                  <div className="form-grid">
-                    <div className="field">
-                      <label>
-                        Pay type <span className="required-star">*</span>
-                      </label>
-                      <select
-                        id="empPayType"
-                        value={empPayType}
-                        onChange={e => setEmpPayType(e.target.value)}
-                      >
-                        <option>Hourly</option>
-                        <option>Yearly salary</option>
-                        <option>Weekly</option>
-                        <option>Daily</option>
-                        <option>Per job / project</option>
-                        <option>Commission</option>
-                        <option>Base + commission</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Currency</label>
-                      <select
-                        id="empCurrency"
-                        value={empCurrency}
-                        onChange={e => setEmpCurrency(e.target.value)}
-                      >
-                        <option>USD $</option>
-                        <option>GBP £</option>
-                        <option>ILS ₪</option>
-                        <option>CAD C$</option>
-                        <option>EUR €</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>
-                        Minimum pay <span className="required-star">*</span>
-                      </label>
-                      <input
-                        id="empPayMin"
-                        inputMode="decimal"
-                        placeholder="e.g. 25"
-                        value={empPayMin}
-                        onChange={e => setEmpPayMin(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Maximum pay</label>
-                      <input
-                        id="empPayMax"
-                        inputMode="decimal"
-                        placeholder="e.g. 35"
-                        value={empPayMax}
-                        onChange={e => setEmpPayMax(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "12px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      color: "#6e8188",
-                      fontWeight: 900,
-                      margin: "4px 0 8px"
-                    }}
-                  >
-                    Benefits / extras
-                  </label>
-                  <div className="toggle-row" id="benefitChoices">
-                    {[
-                      "Paid time off",
-                      "Health insurance",
-                      "Paid holidays",
-                      "Commission / bonus",
-                      "Transportation help",
-                      "Meals provided",
-                      "Training provided"
-                    ].map(benefit => {
-                      const isSelected = empBenefits.includes(benefit);
-                      return (
-                        <button
-                          key={benefit}
-                          type="button"
-                          className={`toggle-pill ${isSelected ? "selected" : ""}`}
-                          onClick={() => {
-                            setEmpBenefits(prev =>
-                              prev.includes(benefit) ? prev.filter(x => x !== benefit) : [...prev, benefit]
-                            );
-                          }}
-                        >
-                          {benefit}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="profile-actions">
-                  <button
-                    type="button"
-                    className="btn btn-light"
-                    id="employerPrev2"
-                    onClick={() => setEmployerStep(1)}
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    id="employerNext2"
-                    onClick={handleEmployerNext2}
-                  >
-                    Candidate →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Candidate & requirements */}
-            {employerStep === 3 && (
-              <div className="employer-step on" id="employerStep3">
-                <span className="privacy-chip">👤 Employer · Step 3 of 5</span>
-                <h2>Who would be a good fit?</h2>
-                <p className="profile-lead">
-                  Choose only requirements that actually matter for doing the job.
-                </p>
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">🎯</span>
-                    <div>
-                      <h3>Experience and requirements</h3>
-                      <p>This helps match the right applicants without making the post complicated.</p>
-                    </div>
-                  </div>
-                  <div className="form-grid">
-                    <div className="field">
-                      <label>Experience needed</label>
-                      <select
-                        id="empExperience"
-                        value={empExperience}
-                        onChange={e => setEmpExperience(e.target.value)}
-                      >
-                        <option>No experience needed</option>
-                        <option>Some experience preferred</option>
-                        <option>1+ year required</option>
-                        <option>2–3 years required</option>
-                        <option>5+ years required</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Will you train?</label>
-                      <select
-                        id="empTrain"
-                        value={empTrain}
-                        onChange={e => setEmpTrain(e.target.value)}
-                      >
-                        <option>Yes, full training</option>
-                        <option>Some training</option>
-                        <option>No, must already know the job</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Driver’s license</label>
-                      <select
-                        id="empLicense"
-                        value={empLicense}
-                        onChange={e => setEmpLicense(e.target.value)}
-                      >
-                        <option>Not needed</option>
-                        <option>Preferred</option>
-                        <option>Required</option>
-                        <option>Required because driving is part of the job</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Own vehicle</label>
-                      <select
-                        id="empVehicle"
-                        value={empVehicle}
-                        onChange={e => setEmpVehicle(e.target.value)}
-                      >
-                        <option>Not needed</option>
-                        <option>Preferred</option>
-                        <option>Required</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Language needs</label>
-                      <input
-                        id="empLanguages"
-                        placeholder="e.g. English, Yiddish, Hebrew"
-                        value={empLanguages}
-                        onChange={e => setEmpLanguages(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Certification / license</label>
-                      <input
-                        id="empCertification"
-                        placeholder="e.g. CDL, HVAC certification, QuickBooks — or leave blank"
-                        value={empCertification}
-                        onChange={e => setEmpCertification(e.target.value)}
-                      />
-                    </div>
-                    <div className="field wide-field">
-                      <label>Skills you want</label>
-                      <input
-                        id="empSkills"
-                        placeholder="e.g. customer service, Excel, mini-splits, phone skills"
-                        value={empSkills}
-                        onChange={e => setEmpSkills(e.target.value)}
-                      />
-                    </div>
-                    <div className="field wide-field">
-                      <label>Physical or job-specific requirements</label>
-                      <textarea
-                        id="empPhysical"
-                        rows={3}
-                        placeholder="Only include things needed for the work, e.g. lift 50 lb, work on ladders, travel between job sites."
-                        value={empPhysical}
-                        onChange={e => setEmpPhysical(e.target.value)}
-                      ></textarea>
-                    </div>
-                  </div>
-                  <div className="employer-note">
-                    <b>Important:</b> The real platform should keep hiring requirements job-related and comply with local employment laws. Age or gender restrictions should only be used when legally required for a specific role.
-                  </div>
-                </div>
-
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">✅</span>
-                    <div>
-                      <h3>Application settings</h3>
-                      <p>Decide how much information you want before speaking with someone.</p>
-                    </div>
-                  </div>
-                  <div className="form-grid">
-                    <div className="field">
-                      <label>Resume</label>
-                      <select
-                        id="empResume"
-                        value={empResume}
-                        onChange={e => setEmpResume(e.target.value)}
-                      >
-                        <option>Not required</option>
-                        <option>Optional</option>
-                        <option>Required</option>
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label>Application style</label>
-                      <select
-                        id="empApplyStyle"
-                        value={empApplyStyle}
-                        onChange={e => setEmpApplyStyle(e.target.value)}
-                      >
-                        <option>Quick apply — name + basic profile</option>
-                        <option>Profile + work experience</option>
-                        <option>Full application</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="question-box">
-                    <div className="qtop">
-                      <strong>Optional screening questions</strong>
-                      <button
-                        type="button"
-                        className="btn btn-light"
-                        id="addScreening"
-                        onClick={handleAddScreeningQuestion}
-                      >
-                        + Add question
-                      </button>
-                    </div>
-                    <div className="screening-list" id="screeningList">
-                      {screeningQuestions.map((q, idx) => (
-                        <div key={idx} className="screening-item">
-                          <span>{q}</span>
-                          <button
-                            className="remove-q"
-                            type="button"
-                            onClick={() => handleRemoveScreeningQuestion(idx)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="profile-actions">
-                  <button
-                    type="button"
-                    className="btn btn-light"
-                    id="employerPrev3"
-                    onClick={() => setEmployerStep(2)}
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    id="employerNext3"
-                    onClick={handleEmployerNext3}
-                  >
-                    Contact →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Contact & Notifications */}
-            {employerStep === 4 && (
-              <div className="employer-step on" id="employerStep4">
-                <span className="privacy-chip">📬 Employer · Step 4 of 5</span>
-                <h2>How should applicants reach you?</h2>
-                <p className="profile-lead">
-                  Choose your preferred contact methods for applications and inquiries.
-                </p>
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">📬</span>
-                    <div>
-                      <h3>Preferred Contact Method</h3>
-                      <p>Choose how applicants and the platform should reach you.</p>
-                    </div>
-                  </div>
-                  <div className="option-grid" id="messageOptions">
-                    {["Email notifications", "Phone calls", "WhatsApp / Text"].map(opt => (
-                      <button
-                        key={opt}
-                        type="button"
-                        className={`option-card ${empMessaging === opt ? "selected" : ""}`}
-                        onClick={() => setEmpMessaging(opt)}
-                      >
-                        {opt === "Email notifications" ? "✉️ Email" : opt === "Phone calls" ? "📞 Phone call" : "💬 WhatsApp / Text"}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="smart-help">
-                    <span>🔒</span>
-                    <div>
-                      <b>Direct & Verified Contact</b>
-                      <br />
-                      Applicants reach you directly according to your preferences. Your contact information is kept secure.
-                    </div>
-                  </div>
-                </div>
-
-                <div className="form-section">
-                  <div className="form-section-title">
-                    <span className="sicon">☎️</span>
-                    <div>
-                      <h3>Employer contact</h3>
-                      <p>This is for verification and routing. It does not have to be shown publicly.</p>
-                    </div>
-                  </div>
-                  <div className="form-grid">
-                    <div className="field">
-                      <label>
-                        Contact person <span className="required-star">*</span>
-                      </label>
-                      <input
-                        id="empContactName"
-                        placeholder="Name"
-                        value={empContactName}
-                        onChange={e => setEmpContactName(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>
-                        Phone number <span className="required-star">*</span>
-                      </label>
-                      <input
-                        id="empPhone"
-                        type="tel"
-                        placeholder="For verification / SMS"
-                        value={empPhone}
-                        onChange={e => setEmpPhone(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Email</label>
-                      <input
-                        id="empEmail"
-                        type="email"
-                        placeholder="name@business.com"
-                        value={empEmail}
-                        onChange={e => setEmpEmail(e.target.value)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>Can applicants call you?</label>
-                      <select
-                        id="empCalls"
-                        value={empCalls}
-                        onChange={e => setEmpCalls(e.target.value)}
-                      >
-                        <option>Email inquiries only</option>
-                        <option>Yes, after resume review</option>
-                        <option>Yes, show business number</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="profile-actions">
-                  <button
-                    type="button"
-                    className="btn btn-light"
-                    id="employerPrev4"
-                    onClick={() => setEmployerStep(3)}
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    id="employerNext4"
-                    onClick={handleEmployerNext4}
-                  >
-                    Review Job →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Review & Approval */}
-            {employerStep === 5 && (
-              <div className="employer-step on" id="employerStep5">
-                <span className="privacy-chip">👀 Employer · Step 5 of 5</span>
-                <h2>Review your job</h2>
-                <p className="profile-lead">
-                  This is what your team will review before the employer sees any paid publishing options.
-                </p>
-
-                <div className="mini-summary" id="employerMiniSummary">
-                  <div className="mitem">
-                    <small>Location</small>
-                    <strong>{empLocation}, {empCountry}</strong>
-                  </div>
-                  <div className="mitem">
-                    <small>Pay</small>
-                    <strong>{getPayText()}</strong>
-                  </div>
-                  <div className="mitem">
-                    <small>Schedule</small>
-                    <strong>{empSchedule} · {empArrangement}</strong>
-                  </div>
-                  <div className="mitem">
-                    <small>Hiring</small>
-                    <strong>{empOpenings}</strong>
-                  </div>
-                </div>
-
-                <div
-                  className="post-preview"
-                  id="employerPreview"
-                  style={{ opacity: employerSubmitted ? 0.7 : 1 }}
-                >
-                  <h3>{empTitle}</h3>
-                  <div className="preview-meta">
-                    <span>{empCompany}</span>
-                    <span>•</span>
-                    <span>📍 {empLocation}, {empCountry}</span>
-                    <span className="tag">{empSchedule}</span>
-                    <span className="category-pill">{empCategory}</span>
-                  </div>
-                  <div className="preview-pay">{getPayText()}</div>
-                  <div className="preview-section">
-                    <h4>Job description</h4>
-                    <p style={{ lineHeight: 1.65, color: "#5d7279", margin: 0 }}>
-                      {empDesc}
-                    </p>
-                  </div>
-                  <div className="preview-section">
-                    <h4>Schedule & setup</h4>
-                    <p style={{ lineHeight: 1.65, color: "#5d7279", margin: 0 }}>
-                      {empArrangement}
-                      {empHours ? ` · ${empHours}` : ""}
-                      {empDays.length ? ` · ${empDays.join(", ")}` : ""}
-                    </p>
-                  </div>
-                  <div className="preview-section">
-                    <h4>What we&apos;re looking for</h4>
-                    <ul className="preview-bullets">
-                      <li>{empExperience}</li>
-                      <li>{empTrain}</li>
-                      {empLicense !== "Not needed" && <li>{empLicense}</li>}
-                      {empLanguages && <li>Languages: {empLanguages}</li>}
-                      {empSkills && <li>Skills: {empSkills}</li>}
-                      {empResume !== "Not required" && <li>Resume: {empResume}</li>}
-                    </ul>
-                  </div>
-                  {empBenefits.length > 0 && (
-                    <div className="preview-section">
-                      <h4>Benefits / extras</h4>
-                      <div className="preview-meta">
-                        {empBenefits.map(b => (
-                          <span key={b} className="tag">{b}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="after-note" style={{ marginTop: "18px" }}>
-                    Preferred contact: <b>{empMessaging}</b>
-                  </div>
-                </div>
-
-                <div className="review-checklist">
-                  <div className="review-check">
-                    <b>✓ Clear pay</b>
-                    Applicants can see how the job pays.
-                  </div>
-                  <div className="review-check">
-                    <b>✓ Clear schedule</b>
-                    Work type, days and hours are included.
-                  </div>
-                  <div className="review-check">
-                    <b>✓ Contact routing</b>
-                    Contact preferences are saved securely.
-                  </div>
-                </div>
-
-                <div className="after-note">
-                  No payment is taken now. First your team reviews the listing. After approval, the employer chooses Standard, Featured, or a monthly employer plan.
-                </div>
-
-                {!employerSubmitted && !employerApproved && (
-                  <div className="profile-actions">
+                <div className="question-box">
+                  <div className="qtop">
+                    <strong>Optional screening questions</strong>
                     <button
                       type="button"
                       className="btn btn-light"
-                      id="employerPrev5"
-                      onClick={() => setEmployerStep(4)}
+                      id="addScreening"
+                      onClick={handleAddScreeningQuestion}
                     >
-                      ← Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      id="submitEmployerJob"
-                      onClick={handleSubmitEmployerJob}
-                    >
-                      Submit for Review
+                      + Add question
                     </button>
                   </div>
-                )}
-
-                {employerSubmitted && !employerApproved && (
-                  <div className="review-status" id="reviewStatus" style={{ marginTop: "20px" }}>
-                    <div className="status-icon">⏳</div>
-                    <h3>Job submitted for review</h3>
-                    <p>
-                      Your team checks the listing and can contact the employer if anything needs clarification. The employer is not charged while it is pending.
-                    </p>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      id="simulateApproval"
-                      onClick={handleSimulateApproval}
-                    >
-                      Prototype: Simulate Approval
-                    </button>
+                  <div className="screening-list" id="screeningList">
+                    {screeningQuestions.map((q, idx) => (
+                      <div key={idx} className="screening-item">
+                        <span>{q}</span>
+                        <button
+                          className="remove-q"
+                          type="button"
+                          onClick={() => handleRemoveScreeningQuestion(idx)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                )}
-
-                {employerApproved && (
-                  <div className="approval-box show" id="approvalBox">
-                    <div className="approval-banner">
-                      ✓ Approved — now choose how you want to publish this job.
-                    </div>
-                    <h2 style={{ fontSize: "30px" }}>Choose a publishing option</h2>
-                    <p className="profile-lead">
-                      This is the first time the employer sees the paid plans.
-                    </p>
-                    <div className="publish-plans">
-                      <div className="publish-plan">
-                        <h4>Standard</h4>
-                        <div className="pamount">
-                          $25 <small>/ 30 days</small>
-                        </div>
-                        <p>One approved listing with direct applications and candidate review.</p>
-                        <button
-                          type="button"
-                          className="btn btn-light publish-choice"
-                          onClick={() => handleChoosePublishPlan("Standard — $25")}
-                        >
-                          Publish Standard
-                        </button>
-                      </div>
-                      <div className="publish-plan featured">
-                        <span className="popular">POPULAR</span>
-                        <h4>Featured</h4>
-                        <div className="pamount">
-                          $50 <small>/ listing</small>
-                        </div>
-                        <p>Higher placement plus instant alerts to qualified candidates.</p>
-                        <button
-                          type="button"
-                          className="btn btn-primary publish-choice"
-                          onClick={() => handleChoosePublishPlan("Featured — $50")}
-                        >
-                          Publish Featured
-                        </button>
-                      </div>
-                      <div className="publish-plan">
-                        <h4>Employer Pro</h4>
-                        <div className="pamount">
-                          $99 <small>/ month</small>
-                        </div>
-                        <p>For regular hirers with multiple listings and priority tools.</p>
-                        <button
-                          type="button"
-                          className="btn btn-light publish-choice"
-                          onClick={() => handleChoosePublishPlan("Employer Pro — $99/month")}
-                        >
-                          Choose Pro
-                        </button>
-                      </div>
-                    </div>
-                    <div className="after-note">
-                      Payment happens only after approval and after the employer selects a publishing option.
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* SECTION 4: CONTACT & INQUIRIES */}
+            <div className="employer-section-block">
+              <div className="employer-section-header">
+                <span className="sicon">📬</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 850 }}>4. Contact & Inquiries</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#5d7279" }}>How applicants and notifications reach your team.</p>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="field">
+                  <label>
+                    Contact person <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="empContactName"
+                    placeholder="e.g. Mendy Klein"
+                    value={empContactName}
+                    onChange={e => setEmpContactName(e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Phone number <span className="required-star">*</span>
+                  </label>
+                  <input
+                    id="empPhone"
+                    type="tel"
+                    placeholder="e.g. 732-555-0199 (for verification & alerts)"
+                    value={empPhone}
+                    onChange={e => setEmpPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Email address</label>
+                  <input
+                    id="empEmail"
+                    type="email"
+                    placeholder="hiring@business.com"
+                    value={empEmail}
+                    onChange={e => setEmpEmail(e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Preferred contact method</label>
+                  <DropdownWithCustom
+                    id="empMessaging"
+                    value={empMessaging}
+                    onChange={setEmpMessaging}
+                    options={["Email notifications", "WhatsApp / Text", "Phone calls"]}
+                    customPlaceholder="e.g. WhatsApp only, Telegram..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 5: PUBLISH & PAYMENT ($25 FLAT FEE ONLY) */}
+            <div className="employer-section-block" style={{ border: "2px solid #b5d5f5", background: "#f8fbff", borderRadius: "16px", padding: "24px" }}>
+              <div className="employer-section-header" style={{ borderBottom: "none", paddingBottom: "4px" }}>
+                <span className="sicon">🚀</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 900, color: "#0c3365" }}>
+                    5. Publish Job Listing ($25 Flat Fee)
+                  </h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#475569" }}>
+                    Simple, flat $25 fee. No recurring charges or complicated tiers.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ marginTop: "16px", background: "#ffffff", padding: "20px 24px", borderRadius: "14px", border: "1.5px solid #cbdde3", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "28px", fontWeight: 900, color: "#0c3365" }}>$25</span>
+                    <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "3px 10px", borderRadius: "999px", fontWeight: 800 }}>
+                      One-Time Flat Listing Fee
+                    </span>
+                  </div>
+                  <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#475569", lineHeight: 1.4 }}>
+                    ✓ 30-day active listing &nbsp;•&nbsp; ✓ Direct candidate applications &nbsp;•&nbsp; ✓ Instant SMS alerts to local matches
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  id="directPublishBtn"
+                  style={{ fontSize: "15px", padding: "13px 26px", fontWeight: 850, boxShadow: "0 6px 18px rgba(30, 114, 200, 0.35)" }}
+                  onClick={() => handlePublishJobDirect("standard")}
+                >
+                  Proceed to Payment ($25) & Publish Job →
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2542,6 +2668,18 @@ export default function HomePage() {
         onClick={handleBackToStart}
       >
         ← Choose Job Seeking / Hiring
+      </button>
+
+      {/* Floating Contact Owner Button */}
+      <button
+        type="button"
+        className="contact-float-btn"
+        id="floatingContactBtn"
+        onClick={() => setContactModalOpen(true)}
+        aria-label="Contact Owner"
+      >
+        <span className="badge-dot" />
+        <span>💬 Contact Owner</span>
       </button>
 
       {/* Topbar */}
@@ -2580,23 +2718,111 @@ export default function HomePage() {
             </button>
           </nav>
           <div className="nav-actions">
+            <button
+              type="button"
+              className="btn btn-light"
+              id="topbarContactBtn"
+              onClick={() => setContactModalOpen(true)}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <span>💬</span> Contact Us
+            </button>
             {user ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span className="auth-user-chip" title={user.email}>
-                  👤 {user.name}
-                  <span className="auth-role-tag">
-                    {user.role === "EMPLOYER" ? "Employer" : "Seeker"}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  id="topbarSignOutBtn"
-                  onClick={handleSignOut}
-                  style={{ fontSize: "12px", padding: "6px 12px" }}
-                >
-                  Sign Out
-                </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div className="user-profile-menu-container" style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className={`auth-user-chip-btn ${userDropdownOpen ? "open" : ""}`}
+                    id="userProfileTriggerBtn"
+                    onClick={() => setUserDropdownOpen(prev => !prev)}
+                    title={user.email}
+                    aria-label="User Profile and Settings"
+                  >
+                    <span className="user-avatar-circle">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "👤"}
+                    </span>
+                    <div className="user-name-role">
+                      <span className="user-display-name">{user.name}</span>
+                      <span className="auth-role-tag">
+                        {user.role === "EMPLOYER" ? "Employer" : "Seeker"}
+                      </span>
+                    </div>
+                    <span className={`dropdown-chevron ${userDropdownOpen ? "open" : ""}`}>▼</span>
+                  </button>
+
+                  {userDropdownOpen && (
+                    <div className="user-profile-dropdown-card" id="userProfileDropdown">
+                      <div className="user-dropdown-header">
+                        <div className="user-avatar-large">
+                          {user.name ? user.name.charAt(0).toUpperCase() : "👤"}
+                        </div>
+                        <div style={{ overflow: "hidden" }}>
+                          <div className="user-dropdown-name">{user.name}</div>
+                          <div className="user-dropdown-email">{user.email}</div>
+                          <span className="user-dropdown-role-badge">
+                            {user.role === "EMPLOYER" ? "🏢 Employer Account" : "💼 Job Seeker Account"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="user-dropdown-divider" />
+
+                      <div className="user-dropdown-actions">
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn"
+                          id="userDropdownEditProfileBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setProfileGateOpen(true);
+                            setProfileStep(1);
+                          }}
+                        >
+                          <span className="item-icon">✏️</span>
+                          <div>
+                            <div className="item-title">Edit Profile</div>
+                            <div className="item-sub">Update location & job preferences</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn"
+                          id="userDropdownCreateResumeBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setResumeModalOpen(true);
+                          }}
+                        >
+                          <span className="item-icon">📄</span>
+                          <div>
+                            <div className="item-title">Create Resume</div>
+                            <div className="item-sub">Build, view & download resume</div>
+                          </div>
+                        </button>
+
+                        <div className="user-dropdown-divider" />
+
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn logout"
+                          id="userDropdownLogoutBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            handleSignOut();
+                          }}
+                        >
+                          <span className="item-icon">🚪</span>
+                          <div>
+                            <div className="item-title" style={{ color: "#dc2626" }}>Logout</div>
+                            <div className="item-sub">Sign out of your account</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {user.role === "EMPLOYER" ? (
                   <button
                     type="button"
@@ -2609,15 +2835,92 @@ export default function HomePage() {
                 ) : null}
               </div>
             ) : (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  id="topbarSignInBtn"
-                  onClick={() => handleOpenAuth("login")}
-                >
-                  Sign In
-                </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div className="user-profile-menu-container" style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className={`auth-user-chip-btn ${userDropdownOpen ? "open" : ""}`}
+                    id="guestProfileTriggerBtn"
+                    onClick={() => setUserDropdownOpen(prev => !prev)}
+                    title="User Profile & Settings"
+                  >
+                    <span className="user-avatar-circle" style={{ background: "#64748b" }}>👤</span>
+                    <div className="user-name-role">
+                      <span className="user-display-name">My Profile</span>
+                      <span className="auth-role-tag" style={{ background: "#f1f5f9", color: "#64748b" }}>Candidate</span>
+                    </div>
+                    <span className={`dropdown-chevron ${userDropdownOpen ? "open" : ""}`}>▼</span>
+                  </button>
+
+                  {userDropdownOpen && (
+                    <div className="user-profile-dropdown-card" id="userProfileDropdown">
+                      <div className="user-dropdown-header">
+                        <div className="user-avatar-large" style={{ background: "#64748b" }}>👤</div>
+                        <div>
+                          <div className="user-dropdown-name">Job Seeker</div>
+                          <div className="user-dropdown-email">Heimish Candidate Profile</div>
+                          <span className="user-dropdown-role-badge">Local Member</span>
+                        </div>
+                      </div>
+
+                      <div className="user-dropdown-divider" />
+
+                      <div className="user-dropdown-actions">
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn"
+                          id="guestDropdownEditProfileBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setProfileGateOpen(true);
+                            setProfileStep(1);
+                          }}
+                        >
+                          <span className="item-icon">✏️</span>
+                          <div>
+                            <div className="item-title">Edit Profile</div>
+                            <div className="item-sub">Update location & job preferences</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn"
+                          id="guestDropdownCreateResumeBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setResumeModalOpen(true);
+                          }}
+                        >
+                          <span className="item-icon">📄</span>
+                          <div>
+                            <div className="item-title">Create Resume</div>
+                            <div className="item-sub">Build, view & download resume</div>
+                          </div>
+                        </button>
+
+                        <div className="user-dropdown-divider" />
+
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn"
+                          id="guestDropdownSignInBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            handleOpenAuth("login");
+                          }}
+                        >
+                          <span className="item-icon">🔑</span>
+                          <div>
+                            <div className="item-title" style={{ color: "#1e72c8" }}>Sign In / Register</div>
+                            <div className="item-sub">Sync applications and SMS alerts</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -2625,7 +2928,7 @@ export default function HomePage() {
                 >
                   Post a Job
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -2701,54 +3004,51 @@ export default function HomePage() {
                   type="button"
                   className="btn btn-primary"
                   id="searchJobsBtn"
-                  onClick={() => {}}
+                  onClick={() => { }}
                 >
                   Search Jobs
                 </button>
               </div>
-              <div className="dashboard-subrow">
-                <button
-                  type="button"
-                  className={`filter-btn ${quickCat === "" && categoryFilter === "" && typeFilter === "" ? "active" : ""}`}
-                  onClick={() => {
-                    setQuickCat("");
-                    setCategoryFilter("");
-                    setTypeFilter("");
-                  }}
-                >
-                  All Jobs
-                </button>
-                <button
-                  type="button"
-                  className={`filter-btn ${typeFilter === "Same-Day / Short-term" ? "active" : ""}`}
-                  onClick={() => {
-                    setTypeFilter(typeFilter === "Same-Day / Short-term" ? "" : "Same-Day / Short-term");
-                    setQuickCat("");
-                  }}
-                >
-                  ⚡ Same-Day Gigs
-                </button>
-                {["Accounting", "Sales", "HVAC", "Driving", "IT"].map(cat => (
+              {/* TWO BUTTONS: ALL JOBS vs SAME-DAY GIGS */}
+              <div style={{ marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+                <div className="view-switch-banner" id="viewSwitchBanner">
                   <button
-                    key={cat}
                     type="button"
-                    className={`filter-btn ${quickCat === cat || categoryFilter === cat ? "active" : ""}`}
+                    className={`view-switch-btn ${typeFilter !== "Same-Day / Short-term" ? "active all" : ""}`}
+                    id="switchAllJobsBtn"
                     onClick={() => {
-                      setQuickCat(cat);
-                      setCategoryFilter(cat);
+                      setTypeFilter("");
+                      setQuickCat("");
+                      setCurrentPage(1);
                     }}
                   >
-                    {cat}
+                    <span>🏢 All Jobs</span>
+                    <span className="view-switch-badge">{uniqueJobsList.length}</span>
                   </button>
-                ))}
-                <button
-                  type="button"
-                  className="filter-btn"
-                  id="showAllCategories"
-                  onClick={() => setShowCategoryBrowser(prev => !prev)}
-                >
-                  ☰ All job types
-                </button>
+                  <button
+                    type="button"
+                    className={`view-switch-btn ${typeFilter === "Same-Day / Short-term" ? "active sameday" : ""}`}
+                    id="switchSameDayBtn"
+                    onClick={() => {
+                      setTypeFilter("Same-Day / Short-term");
+                      setQuickCat("");
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <span>⚡ Same-Day Gigs</span>
+                    <span className="view-switch-badge">
+                      {uniqueJobsList.filter(j => j.type === "Same-Day / Short-term").length}
+                    </span>
+                  </button>
+                </div>
+
+                <div style={{ fontSize: "13px", color: "#64748b", fontWeight: 700 }}>
+                  {typeFilter === "Same-Day / Short-term" ? (
+                    <span>Frame View: <strong style={{ color: "#059669" }}>⚡ Urgent Same-Day Gigs</strong></span>
+                  ) : (
+                    <span>Frame View: <strong style={{ color: "#1e72c8" }}>All Community Job Listings</strong></span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -2757,64 +3057,65 @@ export default function HomePage() {
                 <h3>Filters</h3>
                 <div className="field">
                   <label>Job type</label>
-                  <select
+                  <DropdownWithCustom
                     id="categoryFilter"
                     value={categoryFilter}
-                    onChange={e => {
-                      setCategoryFilter(e.target.value);
-                      setQuickCat(e.target.value);
+                    onChange={(val) => {
+                      setCategoryFilter(val);
+                      setQuickCat(val);
                     }}
-                  >
-                    <option value="">All job types</option>
-                    {JOB_CATEGORIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    options={JOB_CATEGORIES}
+                    allowEmpty
+                    emptyLabel="All job types"
+                    customPlaceholder="Type job category..."
+                  />
                 </div>
                 <div className="field">
                   <label>Country</label>
-                  <select
+                  <DropdownWithCustom
                     id="countryFilter"
                     value={countryFilter}
-                    onChange={e => setCountryFilter(e.target.value)}
-                  >
-                    <option value="">Any country</option>
-                    <option>United States</option>
-                    <option>United Kingdom</option>
-                    <option>Israel</option>
-                    <option>Canada</option>
-                    <option>Belgium</option>
-                  </select>
+                    onChange={setCountryFilter}
+                    options={["United States", "United Kingdom", "Israel", "Canada", "Belgium"]}
+                    allowEmpty
+                    emptyLabel="Any country"
+                    customPlaceholder="Type country..."
+                  />
                 </div>
                 <div className="field">
                   <label>Minimum pay</label>
-                  <select
+                  <DropdownWithCustom
                     id="payFilter"
                     value={payFilter}
-                    onChange={e => setPayFilter(e.target.value)}
-                  >
-                    <option value="0">Any pay</option>
-                    <option value="18">18+ / hr</option>
-                    <option value="20">20+ / hr</option>
-                    <option value="25">25+ / hr</option>
-                    <option value="30">30+ / hr</option>
-                  </select>
+                    onChange={setPayFilter}
+                    options={[
+                      { value: "0", label: "Any pay" },
+                      { value: "18", label: "18+ / hr" },
+                      { value: "20", label: "20+ / hr" },
+                      { value: "25", label: "25+ / hr" },
+                      { value: "30", label: "30+ / hr" },
+                    ]}
+                    customPlaceholder="Enter min pay (e.g. 35)..."
+                  />
                 </div>
                 <div className="field">
                   <label>Schedule</label>
-                  <select
+                  <DropdownWithCustom
                     id="typeFilter"
                     value={typeFilter}
-                    onChange={e => setTypeFilter(e.target.value)}
-                  >
-                    <option value="">Any schedule</option>
-                    <option value="Same-Day / Short-term">⚡ Same-Day / Short-term</option>
-                    <option>Full-time</option>
-                    <option>Part-time</option>
-                    <option>Evenings</option>
-                    <option>Flexible</option>
-                    <option>Temporary</option>
-                  </select>
+                    onChange={setTypeFilter}
+                    options={[
+                      { value: "Same-Day / Short-term", label: "⚡ Same-Day / Short-term" },
+                      { value: "Full-time", label: "Full-time" },
+                      { value: "Part-time", label: "Part-time" },
+                      { value: "Evenings", label: "Evenings" },
+                      { value: "Flexible", label: "Flexible" },
+                      { value: "Temporary", label: "Temporary" },
+                    ]}
+                    allowEmpty
+                    emptyLabel="Any schedule"
+                    customPlaceholder="Type schedule..."
+                  />
                 </div>
                 <button
                   type="button"
@@ -2925,6 +3226,7 @@ export default function HomePage() {
           <div className="foot-links">
             <a href="#jobs">Jobs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); handleChooseHiring(); }}>For Employers</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setContactModalOpen(true); }}>💬 Contact Owner</a>
             <a href="#" onClick={(e) => { e.preventDefault(); showToast("Privacy policy placeholder."); }}>Privacy</a>
           </div>
         </div>
@@ -3417,18 +3719,20 @@ export default function HomePage() {
                     </div>
                     <div className="field">
                       <label style={{ fontWeight: "700", color: "#092040" }}>Minimum Pay</label>
-                      <select
+                      <DropdownWithCustom
                         id="alertMinPayInput"
                         value={alertMinPay}
-                        onChange={e => setAlertMinPay(e.target.value)}
-                      >
-                        <option value="0">Any Pay</option>
-                        <option value="20">$20+/hr</option>
-                        <option value="25">$25+/hr</option>
-                        <option value="30">$30+/hr</option>
-                        <option value="35">$35+/hr</option>
-                        <option value="40">$40+/hr</option>
-                      </select>
+                        onChange={setAlertMinPay}
+                        options={[
+                          { value: "0", label: "Any Pay" },
+                          { value: "20", label: "$20+/hr" },
+                          { value: "25", label: "$25+/hr" },
+                          { value: "30", label: "$30+/hr" },
+                          { value: "35", label: "$35+/hr" },
+                          { value: "40", label: "$40+/hr" },
+                        ]}
+                        customPlaceholder="Enter custom minimum pay (e.g. $45+/hr)..."
+                      />
                     </div>
                   </div>
 
@@ -3578,7 +3882,7 @@ export default function HomePage() {
                       <input
                         id="authCompanyInput"
                         type="text"
-                        placeholder="e.g. Apex Distribution LLC"
+                        placeholder="Enter company or organization name"
                         value={authCompany}
                         onChange={(e) => setAuthCompany(e.target.value)}
                         required
@@ -3750,6 +4054,337 @@ export default function HomePage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Contact Us Modal */}
+      {contactModalOpen && (
+        <div
+          className="contact-modal-overlay"
+          id="contactModal"
+          onClick={() => setContactModalOpen(false)}
+        >
+          <div className="contact-modal-card" onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+              <div>
+                <span className="privacy-chip">🤝 Direct Support</span>
+                <h3 style={{ fontSize: "22px", margin: "6px 0 2px", fontWeight: 900, color: "#0d2c38" }}>
+                  Contact YidMatch Owner
+                </h3>
+                <p style={{ margin: 0, fontSize: "13px", color: "#5d7279" }}>
+                  Reach out directly via WhatsApp, email, or send a quick message below.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setContactModalOpen(false)}
+                style={{ border: "none", background: "#f1f5f9", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", fontSize: "14px", fontWeight: 800 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="contact-quick-grid">
+              <a
+                href="https://wa.me/17325550199?text=Hello%20YidMatch%2C%20I%20have%20a%20question%20about%20a%20job%20listing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="contact-action-card whatsapp"
+              >
+                <span className="c-icon">💬</span>
+                <strong>WhatsApp Chat</strong>
+                <span>Fast reply · Click to message</span>
+              </a>
+
+              <a
+                href="mailto:contact@yidmatch.com?subject=YidMatch%20Inquiry"
+                className="contact-action-card email"
+              >
+                <span className="c-icon">✉️</span>
+                <strong>Direct Email</strong>
+                <span>contact@yidmatch.com</span>
+              </a>
+            </div>
+
+            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "16px", marginTop: "14px" }}>
+              <h4 style={{ margin: "0 0 10px", fontSize: "14px", fontWeight: 800, color: "#1e293b" }}>
+                Or Send a Quick Message
+              </h4>
+              {contactSent ? (
+                <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "14px", borderRadius: "10px", textAlign: "center", color: "#065f46" }}>
+                  <strong>✓ Message sent successfully!</strong>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px" }}>The owner will get back to you shortly via WhatsApp or email.</p>
+                </div>
+              ) : (
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    setContactSubmitting(true);
+                    setTimeout(() => {
+                      setContactSubmitting(false);
+                      setContactSent(true);
+                      showToast("Message sent to YidMatch owner!");
+                    }, 600);
+                  }}
+                  style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+                >
+                  <input
+                    placeholder="Your name"
+                    required
+                    value={contactName}
+                    onChange={e => setContactName(e.target.value)}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px", outline: "none" }}
+                  />
+                  <input
+                    placeholder="Your WhatsApp phone number or email"
+                    required
+                    value={contactEmailOrPhone}
+                    onChange={e => setContactEmailOrPhone(e.target.value)}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px", outline: "none" }}
+                  />
+                  <textarea
+                    placeholder="How can we help? (Job inquiry, posting question, feedback)..."
+                    required
+                    rows={3}
+                    value={contactMessage}
+                    onChange={e => setContactMessage(e.target.value)}
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px", resize: "vertical", outline: "none" }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={contactSubmitting}
+                    style={{ width: "100%", padding: "10px", fontWeight: 800, fontSize: "14px" }}
+                  >
+                    {contactSubmitting ? "Sending..." : "Send Message to Owner →"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resume Builder & Preview Modal */}
+      {resumeModalOpen && (
+        <div
+          className="resume-modal-overlay"
+          id="resumeModal"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setResumeModalOpen(false)}
+        >
+          <div
+            className="resume-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: "780px" }}
+          >
+            <div className="resume-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "24px" }}>📄</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 900, color: "#0c3365" }}>
+                    Heimish Resume Creator & Preview
+                  </h3>
+                  <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: "#64748b" }}>
+                    Build, customize, and print your tailored Heimish candidate resume.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={() => setResumeModalOpen(false)}
+                style={{ padding: "6px 12px", fontSize: "14px", borderRadius: "8px" }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="resume-modal-body" style={{ maxHeight: "72vh", overflowY: "auto" }}>
+              {/* Form Inputs Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                    Full Name
+                  </label>
+                  <input
+                    value={resumeFullName || (user?.name || "Yitzchok Klein")}
+                    onChange={e => setResumeFullName(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px" }}
+                    placeholder="e.g. Yitzchok Klein"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                    Target Job Title / Headline
+                  </label>
+                  <input
+                    value={resumeTitle}
+                    onChange={e => setResumeTitle(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px" }}
+                    placeholder="e.g. Bookkeeper / Office Manager"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                    Phone Number
+                  </label>
+                  <input
+                    value={resumePhone || (user?.phone || profilePhone || "(732) 555-0199")}
+                    onChange={e => setResumePhone(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px" }}
+                    placeholder="(732) 555-0199"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                    Email Address
+                  </label>
+                  <input
+                    value={resumeEmail || (user?.email || "candidate@email.com")}
+                    onChange={e => setResumeEmail(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px" }}
+                    placeholder="candidate@email.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                  Professional Summary
+                </label>
+                <textarea
+                  rows={2}
+                  value={resumeSummary}
+                  onChange={e => setResumeSummary(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13px", resize: "vertical" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                  Work Experience (Bulleted / Past Roles)
+                </label>
+                <textarea
+                  rows={3}
+                  value={resumeExperience}
+                  onChange={e => setResumeExperience(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13px", resize: "vertical" }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                    Skills & Languages
+                  </label>
+                  <input
+                    value={resumeSkills}
+                    onChange={e => setResumeSkills(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 800, color: "#334155", marginBottom: "4px" }}>
+                    Education & Yeshiva / Seminary
+                  </label>
+                  <input
+                    value={resumeEducation}
+                    onChange={e => setResumeEducation(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13px" }}
+                  />
+                </div>
+              </div>
+
+              {/* Live Formatted Resume Sheet Preview */}
+              <div style={{ marginTop: "10px" }}>
+                <span style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 900, color: "#64748b" }}>
+                  Live Document Preview
+                </span>
+                <div className="resume-paper-preview" id="printableResumeArea" style={{ marginTop: "6px" }}>
+                  <div className="resume-paper-header">
+                    <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 900, color: "#0c3365" }}>
+                      {resumeFullName || user?.name || "Yitzchok Klein"}
+                    </h2>
+                    <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e72c8", marginTop: "2px" }}>
+                      {resumeTitle}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                      📍 {resumeCity} • 📞 {resumePhone || user?.phone || "(732) 555-0199"} • ✉️ {resumeEmail || user?.email || "candidate@email.com"}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: "14px" }}>
+                    <h4 style={{ margin: "0 0 4px", fontSize: "12.5px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0c3365", borderBottom: "1px solid #cbd5e1", paddingBottom: "2px" }}>
+                      Professional Summary
+                    </h4>
+                    <p style={{ margin: 0, fontSize: "12.5px", color: "#334155", lineHeight: 1.5 }}>
+                      {resumeSummary}
+                    </p>
+                  </div>
+
+                  <div style={{ marginBottom: "14px" }}>
+                    <h4 style={{ margin: "0 0 4px", fontSize: "12.5px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0c3365", borderBottom: "1px solid #cbd5e1", paddingBottom: "2px" }}>
+                      Experience & Background
+                    </h4>
+                    <pre style={{ margin: 0, fontSize: "12.5px", color: "#334155", fontFamily: "inherit", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                      {resumeExperience}
+                    </pre>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <h4 style={{ margin: "0 0 4px", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0c3365", borderBottom: "1px solid #cbd5e1", paddingBottom: "2px" }}>
+                        Key Skills
+                      </h4>
+                      <div style={{ fontSize: "12px", color: "#334155" }}>
+                        {resumeSkills}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 style={{ margin: "0 0 4px", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#0c3365", borderBottom: "1px solid #cbd5e1", paddingBottom: "2px" }}>
+                        Education & Yeshiva
+                      </h4>
+                      <div style={{ fontSize: "12px", color: "#334155" }}>
+                        {resumeEducation}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="resume-modal-footer">
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.print();
+                  }
+                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <span>🖨️</span> Print / Save PDF
+              </button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setResumeSaved(true);
+                    showToast("✓ Resume saved to your candidate profile!");
+                    setTimeout(() => setResumeModalOpen(false), 800);
+                  }}
+                  style={{ fontWeight: 800 }}
+                >
+                  {resumeSaved ? "✓ Saved" : "Save Resume to Profile →"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

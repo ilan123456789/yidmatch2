@@ -31,10 +31,11 @@ export default function PostJobPage() {
   const [company, setCompany] = useState(user?.companyName || "");
   const [neighborhood, setNeighborhood] = useState("Lakewood, NJ");
   const [location, setLocation] = useState("");
-  const [jobType, setJobType] = useState<"Full-Time" | "Part-Time" | "Remote" | "Hybrid">("Full-Time");
+  const [jobType, setJobType] = useState<string>("Full-Time");
+  const [salaryRate, setSalaryRate] = useState("");
   const [salaryMin, setSalaryMin] = useState("");
   const [salaryMax, setSalaryMax] = useState("");
-  const [salaryType, setSalaryType] = useState<"Year" | "Hour">("Year");
+  const [salaryType, setSalaryType] = useState<string>("Year");
   const [description, setDescription] = useState("");
   const [requirementsText, setRequirementsText] = useState("");
   const [selectedPerks, setSelectedPerks] = useState<string[]>([
@@ -72,12 +73,12 @@ export default function PostJobPage() {
           neighborhood,
           location: location || neighborhood,
           jobType,
-          salaryMin: salaryMin ? Number(salaryMin) : undefined,
-          salaryMax: salaryMax ? Number(salaryMax) : undefined,
+          salaryMin: (salaryRate || salaryMin) ? Number((salaryRate || salaryMin).replace(/[^0-9.]/g, "")) : undefined,
+          salaryMax: (salaryRate || salaryMax) ? Number((salaryRate || salaryMax).replace(/[^0-9.]/g, "")) : undefined,
           salaryType,
-          salaryDisplay: salaryMin && salaryMax 
-            ? `$${Number(salaryMin).toLocaleString()} - $${Number(salaryMax).toLocaleString()} / ${salaryType.toLowerCase()}`
-            : (salaryMin ? `From $${Number(salaryMin).toLocaleString()} / ${salaryType.toLowerCase()}` : "Competitive"),
+          salaryDisplay: (salaryRate || salaryMin)
+            ? `$${Number((salaryRate || salaryMin).replace(/[^0-9.]/g, "")).toLocaleString()} / ${salaryType.toLowerCase()}`
+            : "Competitive",
           description,
           requirements,
           heimishPerks: selectedPerks,
@@ -151,25 +152,88 @@ export default function PostJobPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Apex Distribution LLC"
+                  placeholder="Enter company or organization name"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-brand-blue font-medium"
                 />
               </div>
 
+              {/* Same-day hiring quick toggle card */}
+              <div
+                onClick={() => {
+                  const isCurrent = jobType === "Same-Day / Short-term";
+                  setJobType(isCurrent ? "Full-Time" : "Same-Day / Short-term");
+                }}
+                className={`p-4 rounded-xl border-2 transition cursor-pointer flex items-center justify-between ${
+                  jobType === "Same-Day / Short-term"
+                    ? "bg-green-50 border-green-500 shadow-md shadow-green-100"
+                    : "bg-slate-50 border-slate-200 hover:border-green-300"
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">⚡</span>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-bold text-slate-900 text-sm">Same-Day / Immediate Hiring</span>
+                      <span
+                        className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                          jobType === "Same-Day / Short-term"
+                            ? "bg-green-600 text-white"
+                            : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        Urgent Gig
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Toggle this if you need someone today or right away. Automatically highlights listing in green.
+                    </p>
+                  </div>
+                </div>
+                <div
+                  className={`w-12 h-6 rounded-full transition relative flex-shrink-0 ${
+                    jobType === "Same-Day / Short-term" ? "bg-green-600 shadow-lg shadow-green-500/50" : "bg-slate-300"
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform shadow-md ${
+                      jobType === "Same-Day / Short-term" ? "translate-x-6" : "translate-x-0.5"
+                    }`}
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-slate-700 font-bold mb-1">Employment Type *</label>
                 <select
-                  value={jobType}
-                  onChange={(e) => setJobType(e.target.value as any)}
+                  value={["Full-Time", "Part-Time", "Remote", "Hybrid", "Same-Day / Short-term"].includes(jobType) ? jobType : "Other"}
+                  onChange={(e) => {
+                    if (e.target.value === "Other") {
+                      setJobType("");
+                    } else {
+                      setJobType(e.target.value);
+                    }
+                  }}
                   className="w-full border border-slate-300 rounded-lg p-3 outline-none bg-white font-medium cursor-pointer"
                 >
                   <option value="Full-Time">Full-Time</option>
                   <option value="Part-Time">Part-Time</option>
                   <option value="Remote">Remote</option>
                   <option value="Hybrid">Hybrid</option>
+                  <option value="Same-Day / Short-term">⚡ Same-Day / Daily Gig</option>
+                  <option value="Other">✏️ Other (Type your own...)</option>
                 </select>
+                {!["Full-Time", "Part-Time", "Remote", "Hybrid", "Same-Day / Short-term"].includes(jobType) && (
+                  <input
+                    type="text"
+                    placeholder="Enter custom employment type..."
+                    value={jobType}
+                    onChange={(e) => setJobType(e.target.value)}
+                    className="w-full mt-2 border border-brand-blue rounded-lg p-2.5 outline-none font-medium bg-blue-50/50"
+                    autoFocus
+                  />
+                )}
               </div>
             </div>
 
@@ -177,14 +241,31 @@ export default function PostJobPage() {
               <div>
                 <label className="block text-slate-700 font-bold mb-1">Primary Community / Region *</label>
                 <select
-                  value={neighborhood}
-                  onChange={(e) => setNeighborhood(e.target.value)}
+                  value={NEIGHBORHOOD_OPTIONS.includes(neighborhood as any) ? neighborhood : "Other"}
+                  onChange={(e) => {
+                    if (e.target.value === "Other") {
+                      setNeighborhood("");
+                    } else {
+                      setNeighborhood(e.target.value);
+                    }
+                  }}
                   className="w-full border border-slate-300 rounded-lg p-3 outline-none bg-white font-medium cursor-pointer"
                 >
                   {NEIGHBORHOOD_OPTIONS.filter((n) => n !== "All Locations").map((loc) => (
                     <option key={loc} value={loc}>{loc}</option>
                   ))}
+                  <option value="Other">✏️ Other (Type your own...)</option>
                 </select>
+                {!NEIGHBORHOOD_OPTIONS.includes(neighborhood as any) && (
+                  <input
+                    type="text"
+                    placeholder="Enter custom community / location..."
+                    value={neighborhood}
+                    onChange={(e) => setNeighborhood(e.target.value)}
+                    className="w-full mt-2 border border-brand-blue rounded-lg p-2.5 outline-none font-medium bg-blue-50/50"
+                    autoFocus
+                  />
+                )}
               </div>
 
               <div>
@@ -208,37 +289,47 @@ export default function PostJobPage() {
             <span>2. Compensation</span>
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <label className="block text-slate-700 font-bold mb-1">Minimum Pay ($)</label>
+              <label className="block text-slate-700 font-bold mb-1">Pay / Rate ($)</label>
               <input
-                type="number"
-                placeholder="e.g. 70000"
-                value={salaryMin}
-                onChange={(e) => setSalaryMin(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-brand-blue font-medium"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-700 font-bold mb-1">Maximum Pay ($)</label>
-              <input
-                type="number"
-                placeholder="e.g. 95000"
-                value={salaryMax}
-                onChange={(e) => setSalaryMax(e.target.value)}
+                type="text"
+                placeholder="e.g. 75,000 or 35"
+                value={salaryRate || salaryMin}
+                onChange={(e) => {
+                  setSalaryRate(e.target.value);
+                  setSalaryMin(e.target.value);
+                }}
                 className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-brand-blue font-medium"
               />
             </div>
             <div>
               <label className="block text-slate-700 font-bold mb-1">Pay Period</label>
               <select
-                value={salaryType}
-                onChange={(e) => setSalaryType(e.target.value as any)}
+                value={["Year", "Hour"].includes(salaryType) ? salaryType : "Other"}
+                onChange={(e) => {
+                  if (e.target.value === "Other") {
+                    setSalaryType("");
+                  } else {
+                    setSalaryType(e.target.value);
+                  }
+                }}
                 className="w-full border border-slate-300 rounded-lg p-3 outline-none bg-white font-medium cursor-pointer"
               >
                 <option value="Year">Per Year ($/yr)</option>
                 <option value="Hour">Per Hour ($/hr)</option>
+                <option value="Other">✏️ Other (Type your own...)</option>
               </select>
+              {!["Year", "Hour"].includes(salaryType) && (
+                <input
+                  type="text"
+                  placeholder="e.g. Per Day, Per Project..."
+                  value={salaryType}
+                  onChange={(e) => setSalaryType(e.target.value)}
+                  className="w-full mt-2 border border-brand-blue rounded-lg p-2.5 outline-none font-medium bg-blue-50/50"
+                  autoFocus
+                />
+              )}
             </div>
           </div>
         </div>

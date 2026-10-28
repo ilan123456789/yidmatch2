@@ -274,27 +274,61 @@ export default function DailyJobsPage() {
                   <div>
                     <label className="block text-slate-700 font-bold mb-1">Category *</label>
                     <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value as DailyJobCategory })}
+                      value={CATEGORIES.includes(formData.category as any) ? formData.category : "Other"}
+                      onChange={(e) => {
+                        if (e.target.value === "Other") {
+                          setFormData({ ...formData, category: "" as any });
+                        } else {
+                          setFormData({ ...formData, category: e.target.value as DailyJobCategory });
+                        }
+                      }}
                       className="w-full border border-slate-300 rounded-lg p-2.5 outline-none bg-white"
                     >
                       {CATEGORIES.map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
+                      <option value="Other">✏️ Other (Type your own...)</option>
                     </select>
+                    {!CATEGORIES.includes(formData.category as any) && (
+                      <input
+                        type="text"
+                        placeholder="Enter custom category..."
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                        className="w-full mt-2 border border-brand-blue rounded-lg p-2 outline-none font-medium bg-blue-50/50"
+                        autoFocus
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-slate-700 font-bold mb-1">When Needed? *</label>
                     <select
-                      value={formData.dateNeeded}
-                      onChange={(e) => setFormData({ ...formData, dateNeeded: e.target.value as any })}
+                      value={["Today", "Tonight", "Tomorrow", "Immediate"].includes(formData.dateNeeded) ? formData.dateNeeded : "Other"}
+                      onChange={(e) => {
+                        if (e.target.value === "Other") {
+                          setFormData({ ...formData, dateNeeded: "" as any });
+                        } else {
+                          setFormData({ ...formData, dateNeeded: e.target.value as any });
+                        }
+                      }}
                       className="w-full border border-slate-300 rounded-lg p-2.5 outline-none bg-white font-semibold text-amber-800"
                     >
                       <option value="Today">Today</option>
                       <option value="Tonight">Tonight</option>
                       <option value="Tomorrow">Tomorrow</option>
                       <option value="Immediate">Immediate / Right Now</option>
+                      <option value="Other">✏️ Other (Type your own...)</option>
                     </select>
+                    {!["Today", "Tonight", "Tomorrow", "Immediate"].includes(formData.dateNeeded) && (
+                      <input
+                        type="text"
+                        placeholder="e.g. This Sunday, Next Tuesday..."
+                        value={formData.dateNeeded}
+                        onChange={(e) => setFormData({ ...formData, dateNeeded: e.target.value as any })}
+                        className="w-full mt-2 border border-brand-blue rounded-lg p-2 outline-none font-medium bg-blue-50/50"
+                        autoFocus
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -313,14 +347,31 @@ export default function DailyJobsPage() {
                   <div>
                     <label className="block text-slate-700 font-bold mb-1">Neighborhood *</label>
                     <select
-                      value={formData.neighborhood}
-                      onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                      value={NEIGHBORHOOD_OPTIONS.includes(formData.neighborhood as any) ? formData.neighborhood : "Other"}
+                      onChange={(e) => {
+                        if (e.target.value === "Other") {
+                          setFormData({ ...formData, neighborhood: "" });
+                        } else {
+                          setFormData({ ...formData, neighborhood: e.target.value });
+                        }
+                      }}
                       className="w-full border border-slate-300 rounded-lg p-2.5 outline-none bg-white"
                     >
                       {NEIGHBORHOOD_OPTIONS.filter((n) => n !== "All Locations").map((n) => (
                         <option key={n} value={n}>{n}</option>
                       ))}
+                      <option value="Other">✏️ Other (Type your own...)</option>
                     </select>
+                    {!NEIGHBORHOOD_OPTIONS.includes(formData.neighborhood as any) && (
+                      <input
+                        type="text"
+                        placeholder="Enter custom location..."
+                        value={formData.neighborhood}
+                        onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                        className="w-full mt-2 border border-brand-blue rounded-lg p-2 outline-none font-medium bg-blue-50/50"
+                        autoFocus
+                      />
+                    )}
                   </div>
                 </div>
 

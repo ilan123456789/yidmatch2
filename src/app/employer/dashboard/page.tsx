@@ -35,7 +35,7 @@ export default function EmployerDashboardPage() {
     async function loadEmployerJobs() {
       setLoading(true);
       try {
-        const empId = user?.uid || "emp-apex";
+        const empId = user?.uid || "emp-prime";
         const res = await fetch(`/api/jobs?employerId=${empId}`);
         const data = await res.json();
         if (data.jobs && data.jobs.length > 0) {

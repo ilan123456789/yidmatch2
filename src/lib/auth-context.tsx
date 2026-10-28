@@ -39,7 +39,7 @@ export const DEMO_EMPLOYER: UserProfile = {
   email: "employer@yidmatch.com",
   name: "Chaim Berkowitz",
   role: "EMPLOYER",
-  companyName: "Apex Distribution LLC",
+  companyName: "Prime Wholesale Group",
   phone: "(732) 555-0199",
   location: "Lakewood, NJ",
   createdAt: new Date().toISOString(),

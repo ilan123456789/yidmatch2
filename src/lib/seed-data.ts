@@ -4,7 +4,7 @@ export const SEED_JOBS: Job[] = [
   {
     id: "job-1",
     title: "Full-Charge Bookkeeper / Controller",
-    company: "Apex Distribution LLC",
+    company: "Prime Wholesale Group",
     location: "Lakewood, NJ",
     neighborhood: "Lakewood, NJ",
     jobType: "Full-Time",
@@ -26,9 +26,9 @@ export const SEED_JOBS: Job[] = [
       "Early Friday Dismissal (1:00 PM Winter)"
     ],
     status: "ACTIVE",
-    employerId: "emp-apex",
-    employerEmail: "jobs@apexdistributors.com",
-    contactEmail: "jobs@apexdistributors.com",
+    employerId: "emp-prime",
+    employerEmail: "jobs@primewholesale.com",
+    contactEmail: "jobs@primewholesale.com",
     paymentAmount: 25,
     paymentStatus: "PAID",
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
