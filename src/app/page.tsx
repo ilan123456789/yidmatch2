@@ -332,7 +332,8 @@ const INTEREST_OPTIONS = [
   { label: "🍽️ Food Service", value: "Food Service" },
   { label: "🛍️ Retail", value: "Retail" },
   { label: "🛡️ Security", value: "Security" },
-  { label: "👔 Management", value: "Management" }
+  { label: "👔 Management", value: "Management" },
+  { label: "💡 Other", value: "Other" }
 ];
 
 const EMPLOYER_CATEGORY_OPTIONS = [
@@ -373,6 +374,7 @@ function DropdownWithCustom({
   allowEmpty,
   emptyLabel,
   customPlaceholder = "Type your own...",
+  allowCustom = true,
 }: {
   id?: string;
   value: string;
@@ -382,16 +384,21 @@ function DropdownWithCustom({
   allowEmpty?: boolean;
   emptyLabel?: string;
   customPlaceholder?: string;
+  allowCustom?: boolean;
 }) {
   const normOptions = useMemo(() => {
     return options.map(o => (typeof o === "string" ? { value: o, label: o } : o));
   }, [options]);
 
   const isKnownOption = (allowEmpty && value === "") || normOptions.some(o => o.value === value);
-  const [isCustomMode, setIsCustomMode] = useState(!isKnownOption && Boolean(value));
-  const [customDraft, setCustomDraft] = useState(!isKnownOption && Boolean(value) ? value : "");
+  const [isCustomMode, setIsCustomMode] = useState(allowCustom && !isKnownOption && Boolean(value));
+  const [customDraft, setCustomDraft] = useState(allowCustom && !isKnownOption && Boolean(value) ? value : "");
 
   useEffect(() => {
+    if (!allowCustom) {
+      setIsCustomMode(false);
+      return;
+    }
     const known = (allowEmpty && value === "") || normOptions.some(o => o.value === value);
     if (known) {
       setIsCustomMode(false);
@@ -399,7 +406,7 @@ function DropdownWithCustom({
       setIsCustomMode(true);
       setCustomDraft(value);
     }
-  }, [value, normOptions, allowEmpty]);
+  }, [value, normOptions, allowEmpty, allowCustom]);
 
   return (
     <div style={{ width: "100%" }}>
@@ -424,7 +431,9 @@ function DropdownWithCustom({
             {opt.label}
           </option>
         ))}
-        <option value="__custom__">✏️ Other / Type your own...</option>
+        {allowCustom && (
+          <option value="__custom__">✏️ Other / Type your own...</option>
+        )}
       </select>
 
       {isCustomMode && (
@@ -639,26 +648,54 @@ export default function HomePage() {
     setEntryGateOpen(false);
     setShowBackToStart(true);
     try {
-      sessionStorage.setItem("yidmatch_entry_dismissed", "1");
-      localStorage.setItem("yidmatch_entry_dismissed", "1");
       if (typeof window !== "undefined" && hash) {
         history.replaceState(null, "", hash);
       }
     } catch (_) { }
   };
 
-  // Restore dismissed state on refresh so the user stays on the jobs page
+  // Ensure page starts at selection menu unless navigating directly to jobs view (e.g. from Same-Day Gigs page)
   useEffect(() => {
+    const checkDirectJobsNav = () => {
+      if (typeof window !== "undefined") {
+        const hash = window.location.hash;
+        const search = window.location.search;
+        if (hash === "#jobs" || search.includes("view=jobs") || search.includes("page=all-jobs")) {
+          setEntryGateOpen(false);
+          setShowBackToStart(true);
+          setTimeout(() => {
+            document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
+          }, 120);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (checkDirectJobsNav()) {
+      return;
+    }
+
+    // Fresh direct visit to /: start at selection menu
     try {
-      const isDismissed =
-        sessionStorage.getItem("yidmatch_entry_dismissed") === "1" ||
-        localStorage.getItem("yidmatch_entry_dismissed") === "1" ||
-        (typeof window !== "undefined" && window.location.hash.toLowerCase().includes("job"));
-      if (isDismissed) {
-        setEntryGateOpen(false);
-        setShowBackToStart(true);
+      sessionStorage.removeItem("yidmatch_entry_dismissed");
+      localStorage.removeItem("yidmatch_entry_dismissed");
+      if (typeof window !== "undefined") {
+        if ("scrollRestoration" in history) {
+          history.scrollRestoration = "manual";
+        }
+        window.scrollTo(0, 0);
       }
     } catch (_) { }
+    setEntryGateOpen(true);
+    setShowBackToStart(false);
+
+    window.addEventListener("hashchange", checkDirectJobsNav);
+    window.addEventListener("popstate", checkDirectJobsNav);
+    return () => {
+      window.removeEventListener("hashchange", checkDirectJobsNav);
+      window.removeEventListener("popstate", checkDirectJobsNav);
+    };
   }, []);
 
   useEffect(() => {
@@ -755,6 +792,7 @@ export default function HomePage() {
   // Search & Filter State
   const [searchInput, setSearchInput] = useState("");
   const [locationSearch, setLocationSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [quickCat, setQuickCat] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
@@ -964,12 +1002,7 @@ export default function HomePage() {
   };
 
   const handleChooseSameDay = () => {
-    dismissEntryGate("#jobs");
-    setTypeFilter("Same-Day / Short-term");
-    setQuickCat("");
-    setTimeout(() => {
-      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    window.location.href = "/same-day-gigs";
   };
 
   const handleChooseBrowseAll = () => {
@@ -1265,7 +1298,7 @@ export default function HomePage() {
   // Filter Jobs
   const filteredJobs = useMemo(() => {
     const q = searchInput.toLowerCase().trim();
-    const loc = locationSearch.toLowerCase().trim();
+    const loc = (locationFilter || locationSearch).toLowerCase().trim();
     const min = Number(payFilter);
 
     return uniqueJobsList.filter(j => {
@@ -1282,11 +1315,12 @@ export default function HomePage() {
 
       return matchesQ && matchesLoc && matchesCountry && matchesPay && matchesType && matchesCat;
     });
-  }, [uniqueJobsList, searchInput, locationSearch, countryFilter, payFilter, typeFilter, quickCat, categoryFilter]);
+  }, [uniqueJobsList, searchInput, locationSearch, locationFilter, countryFilter, payFilter, typeFilter, quickCat, categoryFilter]);
 
   const handleClearFilters = () => {
     setSearchInput("");
     setLocationSearch("");
+    setLocationFilter("");
     setQuickCat("");
     setCategoryFilter("");
     setCountryFilter("");
@@ -1302,7 +1336,7 @@ export default function HomePage() {
   // Reset to page 1 whenever any search or filter criteria changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchInput, locationSearch, quickCat, categoryFilter, countryFilter, payFilter, typeFilter]);
+  }, [searchInput, locationSearch, locationFilter, quickCat, categoryFilter, countryFilter, payFilter, typeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredJobs.length / ITEMS_PER_PAGE));
 
@@ -1515,15 +1549,23 @@ export default function HomePage() {
                     <label>
                       Gender <span className="required-star">*</span>
                     </label>
-                    <DropdownWithCustom
+                    <select
                       id="profileGender"
                       value={profileGender}
-                      onChange={setProfileGender}
-                      options={["Male", "Female", "Prefer not to say"]}
-                      allowEmpty
-                      emptyLabel="Choose one"
-                      customPlaceholder="Enter custom gender / title..."
-                    />
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileGender(val);
+                        if (val === "Male" && (profileStage === "Girl" || profileStage === "Woman")) {
+                          setProfileStage("");
+                        } else if (val === "Female" && (profileStage === "Bochur" || profileStage === "Yungerman" || profileStage === "Man")) {
+                          setProfileStage("");
+                        }
+                      }}
+                    >
+                      <option value="">Choose one</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
                   </div>
                   <div className="field">
                     <label>
@@ -1541,15 +1583,28 @@ export default function HomePage() {
                   </div>
                   <div className="field">
                     <label>Which best describes you?</label>
-                    <DropdownWithCustom
+                    <select
                       id="profileStage"
                       value={profileStage}
-                      onChange={setProfileStage}
-                      options={["Bochur", "Yungerman", "Man", "Girl", "Woman"]}
-                      allowEmpty
-                      emptyLabel="Choose one"
-                      customPlaceholder="e.g. Kollel Yungerman, Student..."
-                    />
+                      onChange={(e) => setProfileStage(e.target.value)}
+                    >
+                      <option value="">
+                        {!profileGender ? "Please select gender first" : "Choose one"}
+                      </option>
+                      {profileGender === "Male" && (
+                        <>
+                          <option value="Bochur">Bochur</option>
+                          <option value="Yungerman">Yungerman</option>
+                          <option value="Man">Man</option>
+                        </>
+                      )}
+                      {profileGender === "Female" && (
+                        <>
+                          <option value="Girl">Girl</option>
+                          <option value="Woman">Woman</option>
+                        </>
+                      )}
+                    </select>
                   </div>
                   <div className="field">
                     <label>Country</label>
@@ -1741,7 +1796,8 @@ export default function HomePage() {
                         { label: "📈 Sales", val: "Sales" },
                         { label: "❄️ HVAC", val: "HVAC" },
                         { label: "🚐 Driving", val: "Driving" },
-                        { label: "📦 Warehouse", val: "Warehouse" }
+                        { label: "📦 Warehouse", val: "Warehouse" },
+                        { label: "💡 Other", val: "Other" }
                       ].map(pop => (
                         <button
                           key={pop.val}
@@ -1766,15 +1822,17 @@ export default function HomePage() {
                 <div className="form-grid">
                   <div className="field">
                     <label>Schedule</label>
-                    <DropdownWithCustom
+                    <select
                       id="profileSchedule"
                       value={profileSchedule}
-                      onChange={setProfileSchedule}
-                      options={["Full-time", "Part-time", "Evenings", "Flexible"]}
-                      allowEmpty
-                      emptyLabel="Any schedule"
-                      customPlaceholder="e.g. Morning Seder compatible, Sundays only..."
-                    />
+                      onChange={(e) => setProfileSchedule(e.target.value)}
+                    >
+                      <option value="">Any schedule</option>
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Evenings">Evenings</option>
+                      <option value="Flexible">Flexible</option>
+                    </select>
                   </div>
                   <div className="field">
                     <label>Minimum pay</label>
@@ -3012,42 +3070,35 @@ export default function HomePage() {
               {/* TWO BUTTONS: ALL JOBS vs SAME-DAY GIGS */}
               <div style={{ marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
                 <div className="view-switch-banner" id="viewSwitchBanner">
-                  <button
-                    type="button"
-                    className={`view-switch-btn ${typeFilter !== "Same-Day / Short-term" ? "active all" : ""}`}
+                  <a
+                    href="/?view=jobs#jobs"
+                    className="view-switch-btn active all"
                     id="switchAllJobsBtn"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
                       setTypeFilter("");
                       setQuickCat("");
                       setCurrentPage(1);
+                      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
                     }}
                   >
                     <span>🏢 All Jobs</span>
                     <span className="view-switch-badge">{uniqueJobsList.length}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`view-switch-btn ${typeFilter === "Same-Day / Short-term" ? "active sameday" : ""}`}
+                  </a>
+                  <a
+                    href="/same-day-gigs"
+                    className="view-switch-btn"
                     id="switchSameDayBtn"
-                    onClick={() => {
-                      setTypeFilter("Same-Day / Short-term");
-                      setQuickCat("");
-                      setCurrentPage(1);
-                    }}
                   >
                     <span>⚡ Same-Day Gigs</span>
-                    <span className="view-switch-badge">
-                      {uniqueJobsList.filter(j => j.type === "Same-Day / Short-term").length}
+                    <span className="view-switch-badge" style={{ background: "#f59e0b", color: "#0f172a" }}>
+                      New Page →
                     </span>
-                  </button>
+                  </a>
                 </div>
 
                 <div style={{ fontSize: "13px", color: "#64748b", fontWeight: 700 }}>
-                  {typeFilter === "Same-Day / Short-term" ? (
-                    <span>Frame View: <strong style={{ color: "#059669" }}>⚡ Urgent Same-Day Gigs</strong></span>
-                  ) : (
-                    <span>Frame View: <strong style={{ color: "#1e72c8" }}>All Community Job Listings</strong></span>
-                  )}
+                  <span>Page: <strong style={{ color: "#1e72c8" }}>🏢 All Community Job Listings</strong></span>
                 </div>
               </div>
             </div>
@@ -3056,30 +3107,28 @@ export default function HomePage() {
               <aside className="panel filters">
                 <h3>Filters</h3>
                 <div className="field">
-                  <label>Job type</label>
+                  <label>Location / Area</label>
                   <DropdownWithCustom
-                    id="categoryFilter"
-                    value={categoryFilter}
-                    onChange={(val) => {
-                      setCategoryFilter(val);
-                      setQuickCat(val);
-                    }}
-                    options={JOB_CATEGORIES}
+                    id="locationFilter"
+                    value={locationFilter}
+                    onChange={setLocationFilter}
+                    options={[
+                      "Brooklyn, NY",
+                      "Lakewood, NJ",
+                      "Monsey, NY",
+                      "Five Towns, NY",
+                      "Passaic, NJ",
+                      "Crown Heights, NY",
+                      "Williamsburg, NY",
+                      "Boro Park, NY",
+                      "Jerusalem",
+                      "Tel Aviv",
+                      "London, UK",
+                      "Remote"
+                    ]}
                     allowEmpty
-                    emptyLabel="All job types"
-                    customPlaceholder="Type job category..."
-                  />
-                </div>
-                <div className="field">
-                  <label>Country</label>
-                  <DropdownWithCustom
-                    id="countryFilter"
-                    value={countryFilter}
-                    onChange={setCountryFilter}
-                    options={["United States", "United Kingdom", "Israel", "Canada", "Belgium"]}
-                    allowEmpty
-                    emptyLabel="Any country"
-                    customPlaceholder="Type country..."
+                    emptyLabel="All locations"
+                    customPlaceholder="Type city, state, or neighborhood..."
                   />
                 </div>
                 <div className="field">
@@ -3090,31 +3139,14 @@ export default function HomePage() {
                     onChange={setPayFilter}
                     options={[
                       { value: "0", label: "Any pay" },
-                      { value: "18", label: "18+ / hr" },
-                      { value: "20", label: "20+ / hr" },
-                      { value: "25", label: "25+ / hr" },
-                      { value: "30", label: "30+ / hr" },
+                      { value: "18", label: "$18+ / hr" },
+                      { value: "20", label: "$20+ / hr" },
+                      { value: "25", label: "$25+ / hr" },
+                      { value: "30", label: "$30+ / hr" },
+                      { value: "35", label: "$35+ / hr" },
+                      { value: "40", label: "$40+ / hr" },
                     ]}
-                    customPlaceholder="Enter min pay (e.g. 35)..."
-                  />
-                </div>
-                <div className="field">
-                  <label>Schedule</label>
-                  <DropdownWithCustom
-                    id="typeFilter"
-                    value={typeFilter}
-                    onChange={setTypeFilter}
-                    options={[
-                      { value: "Same-Day / Short-term", label: "⚡ Same-Day / Short-term" },
-                      { value: "Full-time", label: "Full-time" },
-                      { value: "Part-time", label: "Part-time" },
-                      { value: "Evenings", label: "Evenings" },
-                      { value: "Flexible", label: "Flexible" },
-                      { value: "Temporary", label: "Temporary" },
-                    ]}
-                    allowEmpty
-                    emptyLabel="Any schedule"
-                    customPlaceholder="Type schedule..."
+                    customPlaceholder="Enter min pay (e.g. 45)..."
                   />
                 </div>
                 <button
@@ -4073,7 +4105,7 @@ export default function HomePage() {
                   Contact YidMatch Owner
                 </h3>
                 <p style={{ margin: 0, fontSize: "13px", color: "#5d7279" }}>
-                  Reach out directly via WhatsApp, email, or send a quick message below.
+                  Reach out directly to the YidMatch team via WhatsApp or email.
                 </p>
               </div>
               <button
@@ -4106,62 +4138,6 @@ export default function HomePage() {
                 <strong>Direct Email</strong>
                 <span>contact@yidmatch.com</span>
               </a>
-            </div>
-
-            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "16px", marginTop: "14px" }}>
-              <h4 style={{ margin: "0 0 10px", fontSize: "14px", fontWeight: 800, color: "#1e293b" }}>
-                Or Send a Quick Message
-              </h4>
-              {contactSent ? (
-                <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "14px", borderRadius: "10px", textAlign: "center", color: "#065f46" }}>
-                  <strong>✓ Message sent successfully!</strong>
-                  <p style={{ margin: "4px 0 0", fontSize: "12.5px" }}>The owner will get back to you shortly via WhatsApp or email.</p>
-                </div>
-              ) : (
-                <form
-                  onSubmit={e => {
-                    e.preventDefault();
-                    setContactSubmitting(true);
-                    setTimeout(() => {
-                      setContactSubmitting(false);
-                      setContactSent(true);
-                      showToast("Message sent to YidMatch owner!");
-                    }, 600);
-                  }}
-                  style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-                >
-                  <input
-                    placeholder="Your name"
-                    required
-                    value={contactName}
-                    onChange={e => setContactName(e.target.value)}
-                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px", outline: "none" }}
-                  />
-                  <input
-                    placeholder="Your WhatsApp phone number or email"
-                    required
-                    value={contactEmailOrPhone}
-                    onChange={e => setContactEmailOrPhone(e.target.value)}
-                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px", outline: "none" }}
-                  />
-                  <textarea
-                    placeholder="How can we help? (Job inquiry, posting question, feedback)..."
-                    required
-                    rows={3}
-                    value={contactMessage}
-                    onChange={e => setContactMessage(e.target.value)}
-                    style={{ width: "100%", padding: "9px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13.5px", resize: "vertical", outline: "none" }}
-                  />
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={contactSubmitting}
-                    style={{ width: "100%", padding: "10px", fontWeight: 800, fontSize: "14px" }}
-                  >
-                    {contactSubmitting ? "Sending..." : "Send Message to Owner →"}
-                  </button>
-                </form>
-              )}
             </div>
           </div>
         </div>
