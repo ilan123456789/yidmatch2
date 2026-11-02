@@ -3,8 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
-import { db } from "@/lib/firebase/client";
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
+
 
 interface JobItem {
   id: number | string;
@@ -625,9 +624,15 @@ export default function HomePage() {
     // Load from server API immediately so all visitors see jobs across devices
     loadFromApi();
 
-    if (db) {
+    // 2. Real-time Firebase Firestore synchronization (client-side only)
+    const initFirestoreSync = async () => {
+      if (typeof window === "undefined") return;
       try {
-        const q = query(collection(db, "jobs"), orderBy("createdAt", "desc"));
+        const { getClientFirestore } = await import("@/lib/firebase/client");
+        const firestore = await getClientFirestore();
+        if (!firestore) return;
+        const { collection, onSnapshot, query, orderBy } = await import("firebase/firestore");
+        const q = query(collection(firestore, "jobs"), orderBy("createdAt", "desc"));
         unsub = onSnapshot(
           q,
           (snap) => {
@@ -660,8 +665,12 @@ export default function HomePage() {
             console.warn("Firestore onSnapshot error:", err.message);
           }
         );
-      } catch (_) {}
-    }
+      } catch (e) {
+        console.warn("Firestore init sync error:", e);
+      }
+    };
+
+    initFirestoreSync();
 
     return () => {
       if (unsub) unsub();
@@ -1122,17 +1131,23 @@ export default function HomePage() {
       }),
     }).catch(err => console.warn("API save warning:", err));
 
-    // 2. Persist to Firebase Firestore
-    if (db) {
-      addDoc(collection(db, "jobs"), {
-        ...newJob,
-        createdAt: new Date().toISOString(),
-        timestamp: serverTimestamp(),
-        employerEmail: empEmail.trim() || user?.email || "",
-        employerPhone: empPhone.trim() || "",
-        contactName: empContactName.trim() || "",
-        status: "ACTIVE"
-      }).catch(err => console.warn("Firestore save warning:", err.message));
+    // 2. Persist to Firebase Firestore (Client-side)
+    if (typeof window !== "undefined") {
+      import("@/lib/firebase/client").then(async ({ getClientFirestore }) => {
+        const firestore = await getClientFirestore();
+        if (firestore) {
+          const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
+          addDoc(collection(firestore, "jobs"), {
+            ...newJob,
+            createdAt: new Date().toISOString(),
+            timestamp: serverTimestamp(),
+            employerEmail: empEmail.trim() || user?.email || "",
+            employerPhone: empPhone.trim() || "",
+            contactName: empContactName.trim() || "",
+            status: "ACTIVE"
+          }).catch(err => console.warn("Firestore save warning:", err.message));
+        }
+      }).catch(err => console.warn("Firestore load error:", err));
     }
 
     // Dispatch matching SMS job alerts immediately

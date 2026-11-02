@@ -3,8 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
-import { db } from "@/lib/firebase/client";
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
+
 
 interface SameDayGig {
   id: number | string;
@@ -113,10 +112,15 @@ export default function SameDayGigsPage() {
 
     loadGigsFromApi();
 
-    // 2. Real-time Firebase Firestore synchronization
-    if (db) {
+    // 2. Real-time Firebase Firestore synchronization (client-side only)
+    const initFirestoreGigsSync = async () => {
+      if (typeof window === "undefined") return;
       try {
-        const q = query(collection(db, "same_day_gigs"), orderBy("createdAt", "desc"));
+        const { getClientFirestore } = await import("@/lib/firebase/client");
+        const firestore = await getClientFirestore();
+        if (!firestore) return;
+        const { collection, onSnapshot, query, orderBy } = await import("firebase/firestore");
+        const q = query(collection(firestore, "same_day_gigs"), orderBy("createdAt", "desc"));
         unsub = onSnapshot(
           q,
           (snap) => {
@@ -151,8 +155,12 @@ export default function SameDayGigsPage() {
             console.warn("Firestore same_day_gigs onSnapshot error:", err.message);
           }
         );
-      } catch (_) {}
-    }
+      } catch (e) {
+        console.warn("Firestore gigs init sync error:", e);
+      }
+    };
+
+    initFirestoreGigsSync();
 
     return () => {
       if (unsub) unsub();
@@ -218,15 +226,21 @@ export default function SameDayGigsPage() {
       }),
     }).catch(err => console.warn("API save warning:", err));
 
-    // 2. Persist to Firebase Firestore
-    if (db) {
-      addDoc(collection(db, "same_day_gigs"), {
-        ...created,
-        createdAt: new Date().toISOString(),
-        timestamp: serverTimestamp(),
-        employerId: user?.uid || "emp-" + Date.now(),
-        status: "ACTIVE"
-      }).catch(err => console.warn("Firestore gig save warning:", err.message));
+    // 2. Persist to Firebase Firestore (Client-side)
+    if (typeof window !== "undefined") {
+      import("@/lib/firebase/client").then(async ({ getClientFirestore }) => {
+        const firestore = await getClientFirestore();
+        if (firestore) {
+          const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
+          addDoc(collection(firestore, "same_day_gigs"), {
+            ...created,
+            createdAt: new Date().toISOString(),
+            timestamp: serverTimestamp(),
+            employerId: user?.uid || "emp-" + Date.now(),
+            status: "ACTIVE"
+          }).catch(err => console.warn("Firestore gig save warning:", err.message));
+        }
+      }).catch(err => console.warn("Firestore gig load error:", err));
     }
 
     setPostModalOpen(false);

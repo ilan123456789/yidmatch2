@@ -11,8 +11,16 @@ interface DatabaseSchema {
   jobAlerts: JobAlert[];
 }
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const DATA_FILE = path.join(DATA_DIR, "yidmatch_db.json");
+function getDataPaths() {
+  try {
+    const cwd = typeof process !== "undefined" && typeof process.cwd === "function" ? process.cwd() : ".";
+    const dataDir = path.join(cwd, ".data");
+    const dataFile = path.join(dataDir, "yidmatch_db.json");
+    return { dataDir, dataFile };
+  } catch {
+    return { dataDir: ".data", dataFile: ".data/yidmatch_db.json" };
+  }
+}
 
 // In-memory store for Cloudflare Workers / Edge isolates where disk writes are disallowed
 let memoryDb: DatabaseSchema | null = null;
@@ -33,10 +41,12 @@ function getLocalDb(): DatabaseSchema {
     return memoryDb;
   }
 
+  const { dataDir, dataFile } = getDataPaths();
+
   try {
     if (typeof fs !== "undefined" && fs.existsSync && fs.readFileSync) {
-      if (fs.existsSync(DATA_FILE)) {
-        const content = fs.readFileSync(DATA_FILE, "utf-8");
+      if (fs.existsSync(dataFile)) {
+        const content = fs.readFileSync(dataFile, "utf-8");
         if (content && content.trim()) {
           try {
             const parsed = JSON.parse(content);
@@ -54,11 +64,11 @@ function getLocalDb(): DatabaseSchema {
       }
 
       if (fs.mkdirSync && fs.writeFileSync) {
-        if (!fs.existsSync(DATA_DIR)) {
-          fs.mkdirSync(DATA_DIR, { recursive: true });
+        if (!fs.existsSync(dataDir)) {
+          fs.mkdirSync(dataDir, { recursive: true });
         }
         const initialData = getSeedDatabase();
-        fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2), "utf-8");
+        fs.writeFileSync(dataFile, JSON.stringify(initialData, null, 2), "utf-8");
         memoryDb = initialData;
         return memoryDb;
       }
@@ -73,12 +83,13 @@ function getLocalDb(): DatabaseSchema {
 
 function saveLocalDb(data: DatabaseSchema): void {
   memoryDb = data;
+  const { dataDir, dataFile } = getDataPaths();
   try {
     if (typeof fs !== "undefined" && fs.writeFileSync) {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
       }
-      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+      fs.writeFileSync(dataFile, JSON.stringify(data, null, 2), "utf-8");
     }
   } catch {
     // Gracefully persist in-memory in edge environments
