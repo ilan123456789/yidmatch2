@@ -113,7 +113,7 @@ export default function PostJobPage() {
           Post a Job Listing on YID MATCH
         </h1>
         <p className="text-slate-600 max-w-xl mx-auto text-sm sm:text-base">
-          Reach thousands of qualified Heimish job seekers across Lakewood, Brooklyn, Rockland, and beyond for a flat <strong>$25 listing fee</strong>.
+          Reach thousands of qualified Heimish job seekers across Lakewood, Brooklyn, Rockland, and beyond for a flat <strong>$35 listing fee</strong>.
         </p>
       </div>
 
@@ -419,7 +419,7 @@ export default function PostJobPage() {
           </div>
         </div>
 
-        {/* Section 5: $25 Listing Order Summary & Stripe Checkout */}
+        {/* Section 5: $35 Listing Order Summary & Stripe Checkout */}
         <div className="bg-gradient-to-br from-brand-navy via-slate-900 to-brand-navyDark text-white rounded-2xl p-6 sm:p-8 shadow-xl space-y-6 border border-slate-700">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700 pb-5">
             <div>
@@ -433,7 +433,7 @@ export default function PostJobPage() {
             </div>
 
             <div className="text-left sm:text-right">
-              <span className="text-3xl font-extrabold text-white">$25.00</span>
+              <span className="text-3xl font-extrabold text-white">$35.00</span>
               <span className="text-xs text-slate-400 block">USD • Flat One-Time</span>
             </div>
           </div>
@@ -461,7 +461,7 @@ export default function PostJobPage() {
             >
               <CreditCard className="w-5 h-5" />
               <span>
-                {loading ? "Redirecting to Stripe..." : "Proceed to $25 Payment via Stripe"}
+                {loading ? "Redirecting to Stripe..." : "Proceed to $35 Payment via Stripe"}
               </span>
               <ArrowRight className="w-5 h-5 ml-1" />
             </button>

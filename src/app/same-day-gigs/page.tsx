@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
-
+import { formatJobAge, formatDbDate } from "@/lib/date-utils";
 
 interface SameDayGig {
   id: number | string;
@@ -20,6 +20,8 @@ interface SameDayGig {
   desc: string;
   phone?: string;
   whatsapp?: string;
+  postedAt?: string;
+  createdAt?: string;
 }
 
 const INITIAL_SAME_DAY_GIGS: SameDayGig[] = [];
@@ -73,7 +75,7 @@ export default function SameDayGigsPage() {
     try {
       const saved = localStorage.getItem("yidmatch_saved_sameday");
       if (saved) setSavedGigs(JSON.parse(saved));
-    } catch (_) {}
+    } catch (_) { }
 
     // 1. Fetch from server API so any user on any browser sees the gigs
     const loadGigsFromApi = async () => {
@@ -93,7 +95,7 @@ export default function SameDayGigsPage() {
               pay: Number(dj.payAmount) || 25,
               payText: dj.payType ? `$${dj.payAmount} · ${dj.payType}` : `$${dj.payAmount || 25}/hr`,
               dateNeeded: (dj.dateNeeded as any) || "Today",
-              age: dj.createdAt ? "Recently" : "Just now",
+              age: formatJobAge(dj.postedAt || dj.createdAt),
               desc: dj.description || dj.desc || "",
               phone: dj.contactPhone || "",
               whatsapp: dj.contactWhatsapp || (dj.contactPhone ? dj.contactPhone.replace(/\D/g, "") : "")
@@ -138,7 +140,7 @@ export default function SameDayGigsPage() {
                   pay: Number(d.pay) || 25,
                   payText: d.payText || `$${d.pay || 25}/hr`,
                   dateNeeded: d.dateNeeded || "Today",
-                  age: d.age || "Recently",
+                  age: formatJobAge(d.postedAt || d.createdAt || d.timestamp),
                   desc: d.desc || "",
                   phone: d.phone || "",
                   whatsapp: d.whatsapp || ""
@@ -173,7 +175,7 @@ export default function SameDayGigsPage() {
       const updated = exists ? prev.filter(gId => gId !== id) : [...prev, id];
       try {
         localStorage.setItem("yidmatch_saved_sameday", JSON.stringify(updated));
-      } catch (_) {}
+      } catch (_) { }
       showToast(exists ? `Removed "${title}" from saved gigs.` : `Saved "${title}"!`);
       return updated;
     });
@@ -186,6 +188,7 @@ export default function SameDayGigsPage() {
       return;
     }
     const payNum = Number(newPay.replace(/[^0-9.]/g, "")) || 25;
+    const now = new Date();
     const created: SameDayGig = {
       id: "gig-" + Date.now(),
       icon: "⚡",
@@ -197,10 +200,12 @@ export default function SameDayGigsPage() {
       pay: payNum,
       payText: newPay.includes("$") ? newPay.trim() : `$${newPay.trim()} · Same-day pay`,
       dateNeeded: newDateNeeded,
-      age: "Just now",
+      age: formatJobAge(now),
       desc: newDesc.trim() || "Immediate work needed. Contact employer directly for start time and location.",
       phone: newPhone.trim(),
-      whatsapp: newPhone.replace(/\D/g, "")
+      whatsapp: newPhone.replace(/\D/g, ""),
+      postedAt: formatDbDate(now),
+      createdAt: now.toISOString(),
     };
 
     setGigs(prev => [created, ...prev]);
@@ -234,7 +239,8 @@ export default function SameDayGigsPage() {
           const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
           addDoc(collection(firestore, "same_day_gigs"), {
             ...created,
-            createdAt: new Date().toISOString(),
+            createdAt: now.toISOString(),
+            postedAt: formatDbDate(now),
             timestamp: serverTimestamp(),
             employerId: user?.uid || "emp-" + Date.now(),
             status: "ACTIVE"
@@ -249,7 +255,7 @@ export default function SameDayGigsPage() {
     setNewPay("");
     setNewPhone("");
     setNewDesc("");
-    showToast("✓ Urgent same-day gig posted live!");
+    showToast("✓ Urgent same-day gig posted live! ($10)");
   };
 
   // Unique de-duplicated Gigs list
@@ -306,10 +312,10 @@ export default function SameDayGigsPage() {
         className="contact-float-btn"
         id="floatingContactBtn"
         onClick={() => setContactModalOpen(true)}
-        aria-label="Contact Owner"
+        aria-label="Contact Us"
       >
         <span className="badge-dot" />
-        <span className="contact-text-full">💬 Contact Owner</span>
+        <span className="contact-text-full">💬 Contact Us</span>
         <span className="contact-text-short">💬 Contact</span>
       </button>
 
@@ -322,35 +328,50 @@ export default function SameDayGigsPage() {
               alt="YidMatch"
               width={180}
               height={60}
-              style={{ height: "auto", maxHeight: "48px", width: "auto" }}
+              className="topbar-brand-logo"
               priority
             />
           </a>
 
-          <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <a className="navlink" href="/?view=jobs#jobs" style={{ fontWeight: 700 }}>
-              🏢 All Community Jobs
-            </a>
-            <span
-              className="bsd-badge"
-              style={{
-                fontSize: "12px",
-                fontWeight: 800,
-                color: "#1e3a5f",
-                background: "#f1f5f9",
-                padding: "3px 8px",
-                borderRadius: "6px",
-                border: "1px solid #cbd5e1"
-              }}
+          <div className="nav-actions">
+            <button
+              type="button"
+              className="btn btn-primary topbar-post-job-btn"
+              onClick={() => setPostModalOpen(true)}
+              style={{ background: "#059669", boxShadow: "0 4px 14px rgba(5, 150, 105, 0.3)" }}
             >
-              בס״ד
-            </span>
+              ⚡ Post a Gig ($10)
+            </button>
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTENT - NO HERO SECTION */}
-      <main className="shell" style={{ paddingTop: "28px", paddingBottom: "70px" }}>
+      {/* MAIN CONTENT */}
+      <main className="shell" style={{ paddingTop: "24px", paddingBottom: "70px" }}>
+
+        {/* HERO / INTRO BANNER */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #092040 0%, #064e3b 100%)",
+            borderRadius: "20px",
+            padding: "24px 26px",
+            color: "#ffffff",
+            marginBottom: "20px",
+            boxShadow: "0 12px 32px rgba(9, 32, 64, 0.16)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(110, 231, 183, 0.4)", borderRadius: "999px", padding: "4px 12px", fontSize: "12px", fontWeight: 800, color: "#6ee7b7", marginBottom: "10px" }}>
+            ⚡ URGENT SAME-DAY COMMUNITY GIGS
+          </div>
+          <h1 style={{ fontSize: "26px", fontWeight: 900, margin: "0 0 6px", letterSpacing: "-0.02em", color: "#ffffff" }}>
+            Same-Day Gigs & Immediate Cash Tasks
+          </h1>
+          <p style={{ margin: 0, color: "#cbd5e1", fontSize: "14px", lineHeight: 1.5, maxWidth: "680px" }}>
+            Connect directly with verified local community members needing drivers, warehouse helpers, event staff, and fast tasks with same-day compensation.
+          </p>
+        </div>
 
         {/* SEARCH BAR */}
         <div className="dashboard-search">
@@ -374,7 +395,7 @@ export default function SameDayGigsPage() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => {}}
+              onClick={() => { }}
               style={{ background: "#059669" }}
             >
               Search Gigs
@@ -483,18 +504,137 @@ export default function SameDayGigsPage() {
             </div>
 
             {filteredGigs.length === 0 ? (
-              <div className="empty-state">
-                <span style={{ fontSize: "36px" }}>⚡</span>
-                <h3>No jobs found</h3>
-                <p>New same-day gigs and urgent tasks will appear here once employers post them.</p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setPostModalOpen(true)}
-                  style={{ background: "#059669" }}
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "24px",
+                  padding: "44px 28px",
+                  textAlign: "center",
+                  boxShadow: "0 14px 40px rgba(8, 28, 59, 0.06)",
+                }}
+              >
+                <div
+                  style={{
+                    width: "68px",
+                    height: "68px",
+                    borderRadius: "20px",
+                    background: "linear-gradient(135deg, #ecfdf5, #d1fae5)",
+                    border: "1.5px solid #a7f3d0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "34px",
+                    margin: "0 auto 18px",
+                    boxShadow: "0 8px 20px rgba(5, 150, 105, 0.15)",
+                  }}
                 >
-                  + Post the First Gig ($25)
-                </button>
+                  ⚡
+                </div>
+                <h3 style={{ fontSize: "24px", fontWeight: 900, color: "#092040", margin: "0 0 8px" }}>
+                  No Active Gigs Right Now
+                </h3>
+                <p style={{ color: "#64748b", maxWidth: "520px", margin: "0 auto 24px", lineHeight: 1.6, fontSize: "14.5px" }}>
+                  Same-day gigs and urgent tasks fill fast in local communities! If you need help today, post a gig to notify local workers immediately, or check back throughout the day.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", flexWrap: "wrap", marginBottom: "36px" }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setPostModalOpen(true)}
+                    style={{
+                      background: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
+                      fontSize: "15px",
+                      padding: "12px 24px",
+                      fontWeight: 800,
+                      boxShadow: "0 8px 24px rgba(5, 150, 105, 0.35)",
+                      borderRadius: "12px",
+                      border: "none",
+                    }}
+                  >
+                    ⚡ Post an Urgent Gig ($10)
+                  </button>
+                  <a
+                    href="/?view=jobs#jobs"
+                    className="btn btn-light"
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 750,
+                      padding: "11px 20px",
+                      borderRadius: "12px",
+                      color: "#1e72c8",
+                      borderColor: "#cbd5e1",
+                    }}
+                  >
+                    🏢 Browse All Community Jobs →
+                  </a>
+                </div>
+
+                {/* Popular Urgent Tasks Suggestion Grid */}
+                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "26px", textAlign: "left" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "14px", textAlign: "center" }}>
+                    Common Urgent Requests · Click to Post in 30 Seconds:
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                      gap: "10px",
+                      maxWidth: "760px",
+                      margin: "0 auto",
+                    }}
+                  >
+                    {[
+                      { icon: "📦", title: "Warehouse / Pallet Helper", pay: "$30/hr · 4 hrs" },
+                      { icon: "🚗", title: "Airport or Local Driver", pay: "$75 flat cash" },
+                      { icon: "🍽️", title: "Simcha / Event Waiter", pay: "$35/hr · Tonight" },
+                      { icon: "🔧", title: "Urgent Handyman / Setup", pay: "$40/hr · Immediate" },
+                    ].map((item) => (
+                      <button
+                        key={item.title}
+                        type="button"
+                        onClick={() => {
+                          setNewTitle(item.title);
+                          setNewPay(item.pay);
+                          setPostModalOpen(true);
+                        }}
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "14px",
+                          padding: "12px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "12px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = "#059669";
+                          e.currentTarget.style.background = "#ecfdf5";
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "#e2e8f0";
+                          e.currentTarget.style.background = "#f8fafc";
+                          e.currentTarget.style.transform = "none";
+                        }}
+                      >
+                        <span style={{ fontSize: "22px" }}>{item.icon}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {item.title}
+                          </div>
+                          <div style={{ fontSize: "11.5px", color: "#059669", fontWeight: 700 }}>
+                            {item.pay}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "16px", color: "#94a3b8", fontWeight: 700 }}>+</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="jobs-list">
@@ -584,8 +724,8 @@ export default function SameDayGigsPage() {
           <div className="footer-links">
             <a href="/?view=jobs#jobs">All Community Jobs</a>
             <a href="/same-day-gigs">⚡ Same-Day Gigs</a>
-            <a href="#" onClick={e => { e.preventDefault(); setPostModalOpen(true); }}>Post a Gig ($25)</a>
-            <a href="#" onClick={e => { e.preventDefault(); setContactModalOpen(true); }}>Contact Owner</a>
+            <a href="#" onClick={e => { e.preventDefault(); setPostModalOpen(true); }}>Post a Gig ($10)</a>
+            <a href="#" onClick={e => { e.preventDefault(); setContactModalOpen(true); }}>Contact Us</a>
           </div>
         </div>
       </footer>
@@ -769,7 +909,7 @@ export default function SameDayGigsPage() {
               <div>
                 <span className="privacy-chip">⚡ Post an Urgent Gig</span>
                 <h3 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 800 }}>
-                  Post a Same-Day Gig ($25)
+                  Post a Same-Day Gig ($10)
                 </h3>
                 <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
                   Goes live instantly on the same-day gigs board and alerts local workers.
@@ -859,7 +999,7 @@ export default function SameDayGigsPage() {
                 className="btn btn-primary"
                 style={{ width: "100%", padding: "12px", fontWeight: 800, fontSize: "15px", background: "#059669" }}
               >
-                Post Live Same-Day Gig → $25
+                Post Live Same-Day Gig → $10
               </button>
             </form>
           </div>

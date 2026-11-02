@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJobs, getAllEmployerJobs, createJob } from "@/lib/db";
 import { createJobPostingCheckoutSession } from "@/lib/stripe";
+import { formatDbDate } from "@/lib/date-utils";
 import { Job } from "@/types";
 
 export async function GET(req: Request) {
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
       employerId,
       employerEmail,
       contactEmail,
+      isSponsored,
     } = body;
 
     if (!title || !company || !location || !description || !employerId) {
@@ -77,6 +79,7 @@ export async function POST(req: Request) {
     const origin = req.headers.get("origin") || req.headers.get("host") || "http://localhost:3000";
     const baseUrl = origin.startsWith("http") ? origin : `http://${origin}`;
 
+    const now = new Date();
     const newJob: Job = {
       id: jobId,
       title,
@@ -95,20 +98,23 @@ export async function POST(req: Request) {
       employerId,
       employerEmail: employerEmail || "",
       contactEmail: contactEmail || employerEmail || "",
-      paymentAmount: 25,
+      paymentAmount: isSponsored ? 45 : 35,
       paymentStatus: body.paymentStatus || "PAID",
-      createdAt: new Date().toISOString(),
-      featured: true,
+      createdAt: now.toISOString(),
+      postedAt: formatDbDate(now),
+      isSponsored: Boolean(isSponsored),
+      featured: Boolean(isSponsored),
     };
 
     await createJob(newJob);
 
-    // Create Stripe Checkout Session ($25.00)
+    // Create Stripe Checkout Session ($35.00 Regular or $45.00 Sponsored)
     const checkout = await createJobPostingCheckoutSession({
       jobId,
       jobTitle: title,
       employerEmail: employerEmail || "billing@yidmatch.com",
       baseUrl,
+      isSponsored: Boolean(isSponsored),
     });
 
     return NextResponse.json({

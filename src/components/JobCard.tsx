@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Job } from "@/types";
+import { formatJobAge } from "@/lib/date-utils";
 import { 
   Building2, 
   MapPin, 
@@ -18,16 +19,7 @@ interface JobCardProps {
 }
 
 export const JobCard: React.FC<JobCardProps> = ({ job }) => {
-  // Calculate relative time
-  const getTimeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return "Just now";
-    if (hours < 24) return `${hours} hours ago`;
-    const days = Math.floor(hours / 24);
-    if (days === 1) return "Yesterday";
-    return `${days} days ago`;
-  };
+  const timeAgoText = formatJobAge(job.postedAt || job.createdAt);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 job-card-hover relative overflow-hidden group shadow-sm hover:border-brand-blue/50">
@@ -118,7 +110,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
           </Link>
           <div className="flex items-center space-x-1 text-slate-400 text-xs">
             <Clock className="w-3 h-3" />
-            <span>{getTimeAgo(job.createdAt)}</span>
+            <span>{timeAgoText}</span>
           </div>
         </div>
       </div>

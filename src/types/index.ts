@@ -8,6 +8,9 @@ export interface UserProfile {
   companyName?: string;
   phone?: string;
   location?: string;
+  subscriptionStatus?: "ACTIVE" | "INACTIVE" | "CANCELED";
+  subscriptionPlan?: "UNLIMITED_MONTHLY";
+  subscriptionEndsAt?: string;
   createdAt: string;
 }
 
@@ -34,9 +37,11 @@ export interface Job {
   employerEmail: string;
   contactEmail?: string;
   paymentId?: string;
-  paymentAmount?: number; // 25
+  paymentAmount?: number; // 35 or 45
   paymentStatus?: "PAID" | "PENDING" | "FREE_PROMO";
   createdAt: string;
+  postedAt?: string; // Formatted "YYYY/MM/DD HH:mm:ss"
+  isSponsored?: boolean; // Pinned to front & top
   featured?: boolean;
 }
 

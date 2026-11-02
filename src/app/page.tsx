@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
-
+import { formatJobAge, formatDbDate } from "@/lib/date-utils";
+import { STRIPE_PAYMENT_LINKS } from "@/lib/stripe";
 
 interface JobItem {
   id: number | string;
@@ -18,6 +19,9 @@ interface JobItem {
   type: string;
   age: string;
   desc: string;
+  postedAt?: string;
+  createdAt?: string;
+  isSponsored?: boolean;
 }
 
 const INITIAL_JOBS: JobItem[] = [];
@@ -284,6 +288,7 @@ export default function HomePage() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authSuccessMsg, setAuthSuccessMsg] = useState("");
+  const [authPromptedFromProfile, setAuthPromptedFromProfile] = useState(false);
 
   const handleOpenAuth = (tab: "login" | "signup" | "forgot" = "login") => {
     setAuthTab(tab);
@@ -563,9 +568,13 @@ export default function HomePage() {
 
   // Job Modal State (declared above)
 
-  // Auth Context (declared at top of HomePage)
   // Saved Jobs State
   const [savedJobs, setSavedJobs] = useState<(number | string)[]>([]);
+  const [viewSavedOnly, setViewSavedOnly] = useState(false);
+
+  // Pricing & Subscription States
+  const [postingTier, setPostingTier] = useState<"regular" | "sponsored" | "unlimited">("regular");
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
 
   // Hybrid Job Application Modal State
   const [appliedJob, setAppliedJob] = useState<JobItem | null>(null);
@@ -597,7 +606,7 @@ export default function HomePage() {
           if (Array.isArray(data?.jobs) && data.jobs.length > 0) {
             const mapped: JobItem[] = data.jobs.map((j: any, idx: number) => ({
               id: j.id || "job-" + Date.now() + "-" + idx,
-              icon: j.icon || (j.jobType?.includes("Same-Day") ? "⚡" : "💼"),
+              icon: j.icon || (j.isSponsored ? "⭐" : j.jobType?.includes("Same-Day") ? "⚡" : "💼"),
               title: j.title,
               company: j.company,
               location: j.location,
@@ -606,8 +615,11 @@ export default function HomePage() {
               pay: Number(j.salaryMin) || Number(j.pay) || 25,
               payText: j.salaryDisplay || j.payText || `$${j.salaryMin || 25}/hr`,
               type: j.jobType || j.type || "Full-time",
-              age: j.createdAt ? "Recently" : "Just now",
-              desc: j.description || j.desc || ""
+              age: formatJobAge(j.postedAt || j.createdAt),
+              desc: j.description || j.desc || "",
+              postedAt: j.postedAt || (j.createdAt ? formatDbDate(new Date(j.createdAt)) : undefined),
+              createdAt: j.createdAt,
+              isSponsored: Boolean(j.isSponsored || j.featured)
             }));
             setJobsList(prev => {
               const seen = new Set(prev.map(p => `${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
@@ -641,7 +653,7 @@ export default function HomePage() {
                 const d = doc.data();
                 return {
                   id: doc.id,
-                  icon: d.icon || (d.type?.includes("Same-Day") ? "⚡" : "💼"),
+                  icon: d.icon || (d.isSponsored ? "⭐" : d.type?.includes("Same-Day") ? "⚡" : "💼"),
                   title: d.title || "Untitled Position",
                   company: d.company || "Community Business",
                   location: d.location || "Lakewood, NJ",
@@ -650,8 +662,11 @@ export default function HomePage() {
                   pay: Number(d.pay) || 25,
                   payText: d.payText || `$${d.pay || 25}/hr`,
                   type: d.type || "Full-time",
-                  age: d.age || "Recently",
-                  desc: d.desc || ""
+                  age: formatJobAge(d.postedAt || d.createdAt || d.timestamp),
+                  desc: d.desc || "",
+                  postedAt: d.postedAt,
+                  createdAt: d.createdAt,
+                  isSponsored: Boolean(d.isSponsored || d.featured)
                 };
               });
               setJobsList(prev => {
@@ -961,9 +976,21 @@ export default function HomePage() {
       text: summaryParts.join(" · ")
     });
 
-    setTimeout(() => {
-      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    // If seeker is not yet logged in, prompt sign up/sign in screen (optional)
+    if (!user) {
+      setAuthRole("SEEKER");
+      if (profilePhone) setAuthPhone(profilePhone);
+      if (profileLocation) setAuthLocation(profileLocation);
+      setAuthTab("signup");
+      setAuthError("");
+      setAuthSuccessMsg("");
+      setAuthPromptedFromProfile(true);
+      setAuthModalOpen(true);
+    } else {
+      setTimeout(() => {
+        document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
   };
 
   const toggleInterest = (val: string) => {
@@ -1069,7 +1096,7 @@ export default function HomePage() {
     setScreeningQuestions(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handlePublishJobDirect = (planType?: "standard" | "featured" | "sameday") => {
+  const handlePublishJobDirect = (planType?: "standard" | "featured" | "sameday" | "sponsored" | "unlimited") => {
     if (!empCompany.trim() || !empTitle.trim()) {
       showToast("Please provide the business name and job title.");
       return;
@@ -1088,14 +1115,20 @@ export default function HomePage() {
       return;
     }
 
-    showToast("✓ Proceeding to payment ($25) — job is now live!");
+    const effectiveTier = planType || postingTier;
+    const isSponsored = effectiveTier === "sponsored" || effectiveTier === "featured";
+    const isUnlimited = effectiveTier === "unlimited";
+    const effectivePrice = isSameDayGig ? 10 : (isUnlimited ? 100 : (isSponsored ? 45 : 35));
+
+    showToast(`✓ Proceeding to payment ($${effectivePrice}) — job is now live!`);
 
     const effectivePay = Number(payVal.replace(/[^0-9.]/g, "")) || 25;
     const finalSchedule = isSameDayGig ? "Same-Day / Short-term" : empSchedule;
+    const now = new Date();
 
     const newJob: JobItem = {
       id: "job-" + Date.now(),
-      icon: isSameDayGig ? "⚡" : "💼",
+      icon: isSameDayGig ? "⚡" : (isSponsored ? "⭐" : "💼"),
       title: empTitle,
       company: empCompany,
       location: `${empLocation}, ${empCountry}`,
@@ -1104,8 +1137,11 @@ export default function HomePage() {
       pay: effectivePay,
       payText: getPayText(),
       type: finalSchedule,
-      age: "Just now",
-      desc: empDesc || "Great opportunity with a heimish workplace."
+      age: formatJobAge(now),
+      desc: empDesc || "Great opportunity with a heimish workplace.",
+      postedAt: formatDbDate(now),
+      createdAt: now.toISOString(),
+      isSponsored: Boolean(isSponsored)
     };
 
     setJobsList(prev => [newJob, ...prev]);
@@ -1127,7 +1163,10 @@ export default function HomePage() {
         employerEmail: empEmail.trim() || user?.email || "",
         contactEmail: empEmail.trim() || user?.email || "",
         status: "ACTIVE",
+        paymentAmount: effectivePrice,
         paymentStatus: "PAID",
+        isSponsored: Boolean(isSponsored),
+        postedAt: formatDbDate(now)
       }),
     }).catch(err => console.warn("API save warning:", err));
 
@@ -1139,11 +1178,14 @@ export default function HomePage() {
           const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
           addDoc(collection(firestore, "jobs"), {
             ...newJob,
-            createdAt: new Date().toISOString(),
+            createdAt: now.toISOString(),
+            postedAt: formatDbDate(now),
             timestamp: serverTimestamp(),
             employerEmail: empEmail.trim() || user?.email || "",
             employerPhone: empPhone.trim() || "",
             contactName: empContactName.trim() || "",
+            isSponsored: Boolean(isSponsored),
+            paymentAmount: effectivePrice,
             status: "ACTIVE"
           }).catch(err => console.warn("Firestore save warning:", err.message));
         }
@@ -1194,7 +1236,11 @@ export default function HomePage() {
     const loc = (locationFilter || locationSearch).toLowerCase().trim();
     const min = Number(payFilter);
 
-    return uniqueJobsList.filter(j => {
+    const result = uniqueJobsList.filter(j => {
+      // Saved Jobs filter
+      if (viewSavedOnly && !savedJobs.includes(j.id)) {
+        return false;
+      }
       const matchesQ =
         !q ||
         (j.title + " " + j.company + " " + j.category + " " + j.desc).toLowerCase().includes(q);
@@ -1208,7 +1254,14 @@ export default function HomePage() {
 
       return matchesQ && matchesLoc && matchesCountry && matchesPay && matchesType && matchesCat;
     });
-  }, [uniqueJobsList, searchInput, locationSearch, locationFilter, countryFilter, payFilter, typeFilter, quickCat, categoryFilter]);
+
+    // Pinned sponsored jobs always show on front and top
+    return result.sort((a, b) => {
+      if (a.isSponsored && !b.isSponsored) return -1;
+      if (!a.isSponsored && b.isSponsored) return 1;
+      return 0;
+    });
+  }, [uniqueJobsList, searchInput, locationSearch, locationFilter, countryFilter, payFilter, typeFilter, quickCat, categoryFilter, viewSavedOnly, savedJobs]);
 
   const handleClearFilters = () => {
     setSearchInput("");
@@ -1219,6 +1272,7 @@ export default function HomePage() {
     setCountryFilter("");
     setPayFilter("0");
     setTypeFilter("");
+    setViewSavedOnly(false);
     setCurrentPage(1);
   };
 
@@ -1229,7 +1283,7 @@ export default function HomePage() {
   // Reset to page 1 whenever any search or filter criteria changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchInput, locationSearch, locationFilter, quickCat, categoryFilter, countryFilter, payFilter, typeFilter]);
+  }, [searchInput, locationSearch, locationFilter, quickCat, categoryFilter, countryFilter, payFilter, typeFilter, viewSavedOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredJobs.length / ITEMS_PER_PAGE));
 
@@ -1389,7 +1443,7 @@ export default function HomePage() {
           <div className="profile-top">
             <button
               type="button"
-              className="btn btn-light"
+              className="btn btn-light profile-back-btn"
               id="profileBack"
               onClick={() => {
                 setProfileGateOpen(false);
@@ -1397,15 +1451,6 @@ export default function HomePage() {
               }}
             >
               ← Back
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              id="profileBrowseAll"
-              onClick={handleChooseBrowseAll}
-              style={{ fontSize: "13px", fontWeight: 700, padding: "8px 16px", borderRadius: "10px", display: "inline-flex", alignItems: "center", gap: "6px" }}
-            >
-              📋 Browse All Jobs Directly →
             </button>
             <div className="profile-progress">
               <span className={`progress-dot ${profileStep >= 1 ? "on" : ""}`} id="pd1"></span>
@@ -2572,42 +2617,168 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* SECTION 5: PUBLISH & PAYMENT ($25 FLAT FEE ONLY) */}
+            {/* SECTION 5: PUBLISH & PRICING PLANS */}
             <div className="employer-section-block" style={{ border: "2px solid #b5d5f5", background: "#f8fbff", borderRadius: "16px", padding: "24px" }}>
-              <div className="employer-section-header" style={{ borderBottom: "none", paddingBottom: "4px" }}>
+              <div className="employer-section-header" style={{ borderBottom: "none", paddingBottom: "8px" }}>
                 <span className="sicon">🚀</span>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 900, color: "#0c3365" }}>
-                    5. Publish Job Listing ($25 Flat Fee)
+                    5. Choose Listing Plan & Publish
                   </h3>
                   <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#475569" }}>
-                    Simple, flat $25 fee. No recurring charges or complicated tiers.
+                    Transparent flat pricing processed securely via Stripe. Choose the best option for your hiring needs:
                   </p>
                 </div>
               </div>
 
-              <div style={{ marginTop: "16px", background: "#ffffff", padding: "20px 24px", borderRadius: "14px", border: "1.5px solid #cbdde3", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ fontSize: "28px", fontWeight: 900, color: "#0c3365" }}>$25</span>
-                    <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "3px 10px", borderRadius: "999px", fontWeight: 800 }}>
-                      One-Time Flat Listing Fee
-                    </span>
+              {isSameDayGig ? (
+                /* Same Day Gig Plan */
+                <div style={{ marginTop: "16px", background: "#ffffff", padding: "20px 24px", borderRadius: "14px", border: "2px solid #059669" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "28px", fontWeight: 900, color: "#065f46" }}>$10</span>
+                        <span style={{ fontSize: "12px", background: "#d1fae5", color: "#065f46", padding: "3px 10px", borderRadius: "999px", fontWeight: 800 }}>
+                          ⚡ Urgent Same-Day Gig Fee
+                        </span>
+                      </div>
+                      <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#475569" }}>
+                        ✓ Immediate broadcast to local workers &nbsp;•&nbsp; ✓ Direct phone/WhatsApp calls
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ fontSize: "15px", padding: "13px 26px", fontWeight: 850, background: "#059669", border: "none" }}
+                      onClick={() => handlePublishJobDirect("sameday")}
+                    >
+                      Publish Same-Day Gig ($10) →
+                    </button>
                   </div>
-                  <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#475569", lineHeight: 1.4 }}>
-                    ✓ 30-day active listing &nbsp;•&nbsp; ✓ Direct candidate applications &nbsp;•&nbsp; ✓ Instant SMS alerts to local matches
-                  </p>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  id="directPublishBtn"
-                  style={{ fontSize: "15px", padding: "13px 26px", fontWeight: 850, boxShadow: "0 6px 18px rgba(30, 114, 200, 0.35)" }}
-                  onClick={() => handlePublishJobDirect("standard")}
-                >
-                  Proceed to Payment ($25) & Publish Job →
-                </button>
-              </div>
+              ) : (
+                /* 3 Plan Cards: Regular $35, Sponsored $45 ($35 + $10), Unlimited $100/mo */
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "16px" }}>
+
+                  {/* Option 1: Standard $35 */}
+                  <div
+                    onClick={() => setPostingTier("regular")}
+                    style={{
+                      background: postingTier === "regular" ? "#eff6ff" : "#ffffff",
+                      border: postingTier === "regular" ? "2.5px solid #1e72c8" : "1.5px solid #cbd5e1",
+                      borderRadius: "14px",
+                      padding: "18px 20px",
+                      cursor: "pointer",
+                      position: "relative",
+                      transition: "all 0.15s ease",
+                      boxShadow: postingTier === "regular" ? "0 4px 14px rgba(30, 114, 200, 0.15)" : "none"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <div style={{ fontSize: "15px", fontWeight: 850, color: "#092040" }}>Standard Listing</div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>30-Day live post</div>
+                      </div>
+                      <span style={{ fontSize: "24px", fontWeight: 900, color: "#092040" }}>$35</span>
+                    </div>
+                    <ul style={{ margin: "10px 0 16px", paddingLeft: "18px", fontSize: "12.5px", color: "#475569", lineHeight: 1.6 }}>
+                      <li>✓ Active for 30 full days</li>
+                      <li>✓ Candidate resumes to email</li>
+                      <li>✓ Instant SMS match notifications</li>
+                    </ul>
+                    <button
+                      type="button"
+                      className={`btn ${postingTier === "regular" ? "btn-primary" : "btn-light"}`}
+                      style={{ width: "100%", padding: "10px", fontSize: "13.5px", fontWeight: 800 }}
+                      onClick={(e) => { e.stopPropagation(); setPostingTier("regular"); handlePublishJobDirect("standard"); }}
+                    >
+                      Post for $35 →
+                    </button>
+                  </div>
+
+                  {/* Option 2: Sponsored (+ $10 on top / $45 total) */}
+                  <div
+                    onClick={() => setPostingTier("sponsored")}
+                    style={{
+                      background: postingTier === "sponsored" ? "#fffbeb" : "#ffffff",
+                      border: postingTier === "sponsored" ? "2.5px solid #f59e0b" : "1.5px solid #cbd5e1",
+                      borderRadius: "14px",
+                      padding: "18px 20px",
+                      cursor: "pointer",
+                      position: "relative",
+                      transition: "all 0.15s ease",
+                      boxShadow: postingTier === "sponsored" ? "0 4px 14px rgba(245, 158, 11, 0.2)" : "none"
+                    }}
+                  >
+                    <div style={{ position: "absolute", top: "-10px", right: "14px", background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff", padding: "2px 10px", borderRadius: "999px", fontSize: "10.5px", fontWeight: 850, letterSpacing: "0.03em" }}>
+                      ⭐ PINNED TO TOP
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <div style={{ fontSize: "15px", fontWeight: 850, color: "#92400e" }}>Sponsored & Front</div>
+                        <div style={{ fontSize: "12px", color: "#b45309" }}>$35 + $10 top pin</div>
+                      </div>
+                      <span style={{ fontSize: "24px", fontWeight: 900, color: "#92400e" }}>$45</span>
+                    </div>
+                    <ul style={{ margin: "10px 0 16px", paddingLeft: "18px", fontSize: "12.5px", color: "#78350f", lineHeight: 1.6 }}>
+                      <li><strong>⭐ Pinned to the front & top</strong></li>
+                      <li>✓ Gold highlight badge & border</li>
+                      <li>✓ 3x more views & applicants</li>
+                    </ul>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: "100%", padding: "10px", fontSize: "13.5px", fontWeight: 800, background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", border: "none" }}
+                      onClick={(e) => { e.stopPropagation(); setPostingTier("sponsored"); handlePublishJobDirect("sponsored"); }}
+                    >
+                      Post Sponsored ($45) →
+                    </button>
+                  </div>
+
+                  {/* Option 3: Unlimited Subscription $100 / month */}
+                  <div
+                    onClick={() => setPostingTier("unlimited")}
+                    style={{
+                      background: postingTier === "unlimited" ? "#f0fdf4" : "#ffffff",
+                      border: postingTier === "unlimited" ? "2.5px solid #16a34a" : "1.5px solid #cbd5e1",
+                      borderRadius: "14px",
+                      padding: "18px 20px",
+                      cursor: "pointer",
+                      position: "relative",
+                      transition: "all 0.15s ease",
+                      boxShadow: postingTier === "unlimited" ? "0 4px 14px rgba(22, 163, 74, 0.15)" : "none"
+                    }}
+                  >
+                    <div style={{ position: "absolute", top: "-10px", right: "14px", background: "#16a34a", color: "#fff", padding: "2px 10px", borderRadius: "999px", fontSize: "10.5px", fontWeight: 850, letterSpacing: "0.03em" }}>
+                      👑 UNLIMITED
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <div style={{ fontSize: "15px", fontWeight: 850, color: "#166534" }}>Unlimited Monthly</div>
+                        <div style={{ fontSize: "12px", color: "#15803d" }}>Post without limits</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <span style={{ fontSize: "24px", fontWeight: 900, color: "#166534" }}>$100</span>
+                        <span style={{ fontSize: "11px", color: "#4b5563", display: "block" }}>/ month</span>
+                      </div>
+                    </div>
+                    <ul style={{ margin: "10px 0 16px", paddingLeft: "18px", fontSize: "12.5px", color: "#166534", lineHeight: 1.6 }}>
+                      <li>✓ <strong>Post unlimited jobs</strong> all month</li>
+                      <li>✓ No per-listing fees ($35 saved each)</li>
+                      <li>✓ Self-service cancel on Stripe</li>
+                    </ul>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: "100%", padding: "10px", fontSize: "13.5px", fontWeight: 800, background: "#16a34a", border: "none" }}
+                      onClick={(e) => { e.stopPropagation(); setPostingTier("unlimited"); handlePublishJobDirect("unlimited"); }}
+                    >
+                      Subscribe & Post ($100/mo) →
+                    </button>
+                  </div>
+
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2629,57 +2800,27 @@ export default function HomePage() {
         className="contact-float-btn"
         id="floatingContactBtn"
         onClick={() => setContactModalOpen(true)}
-        aria-label="Contact Owner"
+        aria-label="Contact Us"
       >
         <span className="badge-dot" />
-        <span className="contact-text-full">💬 Contact Owner</span>
+        <span className="contact-text-full">💬 Contact Us</span>
         <span className="contact-text-short">💬 Contact</span>
       </button>
 
       {/* Topbar */}
       <header className="topbar">
-        <div className="shell nav">
+        <div className="shell nav" style={{ justifyContent: "space-between" }}>
           <a className="brand" href="#home" aria-label="YidMatch Home">
             <Image
               src="/logo.png"
               alt="YidMatch"
               width={180}
               height={60}
-              style={{ height: "48px", width: "auto", objectFit: "contain", borderRadius: "10px" }}
+              className="topbar-brand-logo"
               priority
             />
           </a>
-          <nav className="navlinks">
-            <a className="navlink active" href="#jobs">Find Jobs</a>
-            <button
-              type="button"
-              className="navlink"
-              id="topbarAlertsBtn"
-              onClick={() => {
-                setAlertError("");
-                setAlertSuccess(false);
-                setAlertModalOpen(true);
-              }}
-            >
-              🔔 Job Alerts
-            </button>
-            <button
-              type="button"
-              className="navlink"
-              onClick={handleChooseHiring}
-            >
-              For Employers
-            </button>
-          </nav>
           <div className="nav-actions">
-            <button
-              type="button"
-              className="btn btn-light topbar-contact-btn"
-              id="topbarContactBtn"
-              onClick={() => setContactModalOpen(true)}
-            >
-              <span>💬</span> Contact Us
-            </button>
             {user ? (
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <div className="user-profile-menu-container" style={{ position: "relative" }}>
@@ -2754,6 +2895,41 @@ export default function HomePage() {
                           </div>
                         </button>
 
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn"
+                          id="userDropdownSavedJobsBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setViewSavedOnly(true);
+                            setTimeout(() => {
+                              document.querySelector("#jobsList")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }, 100);
+                          }}
+                        >
+                          <span className="item-icon">⭐</span>
+                          <div>
+                            <div className="item-title">Saved Jobs ({savedJobs.length})</div>
+                            <div className="item-sub">View your bookmarked opportunities</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="user-dropdown-item-btn"
+                          id="userDropdownSubscriptionBtn"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setSubscriptionModalOpen(true);
+                          }}
+                        >
+                          <span className="item-icon">💳</span>
+                          <div>
+                            <div className="item-title">Manage Subscription</div>
+                            <div className="item-sub">Unlimited Job Posts ($100/mo)</div>
+                          </div>
+                        </button>
+
                         <div className="user-dropdown-divider" />
 
                         <button
@@ -2779,9 +2955,8 @@ export default function HomePage() {
                 {user.role === "EMPLOYER" ? (
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary topbar-post-job-btn"
                     onClick={handleChooseHiring}
-                    style={{ fontSize: "12.5px", padding: "7px 14px" }}
                   >
                     Post a Job
                   </button>
@@ -2876,7 +3051,7 @@ export default function HomePage() {
 
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-primary topbar-post-job-btn"
                   onClick={handleChooseHiring}
                 >
                   Post a Job
@@ -3045,15 +3220,103 @@ export default function HomePage() {
                   </div>
                 )}
 
+                {/* All Jobs vs Saved Jobs View Switcher */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "14px" }}>
+                  <div style={{ display: "inline-flex", background: "#f1f5f9", borderRadius: "10px", padding: "3px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setViewSavedOnly(false)}
+                      style={{
+                        padding: "7px 16px",
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 750,
+                        border: "none",
+                        cursor: "pointer",
+                        background: !viewSavedOnly ? "#ffffff" : "transparent",
+                        color: !viewSavedOnly ? "#092040" : "#64748b",
+                        boxShadow: !viewSavedOnly ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+                        transition: "all 0.15s ease"
+                      }}
+                    >
+                      💼 All Jobs ({uniqueJobsList.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewSavedOnly(true)}
+                      style={{
+                        padding: "7px 16px",
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 750,
+                        border: "none",
+                        cursor: "pointer",
+                        background: viewSavedOnly ? "#ffffff" : "transparent",
+                        color: viewSavedOnly ? "#092040" : "#64748b",
+                        boxShadow: viewSavedOnly ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+                        transition: "all 0.15s ease",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px"
+                      }}
+                    >
+                      <span>⭐ Saved Jobs</span>
+                      <span style={{
+                        background: viewSavedOnly ? "#dbeafe" : "#e2e8f0",
+                        color: viewSavedOnly ? "#1e40af" : "#475569",
+                        padding: "1px 7px",
+                        borderRadius: "999px",
+                        fontSize: "11px",
+                        fontWeight: 800
+                      }}>
+                        {savedJobs.length}
+                      </span>
+                    </button>
+                  </div>
+
+                  {viewSavedOnly && (
+                    <button
+                      type="button"
+                      onClick={() => setViewSavedOnly(false)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#1e72c8",
+                        fontSize: "13px",
+                        fontWeight: 750,
+                        cursor: "pointer",
+                        textDecoration: "underline"
+                      }}
+                    >
+
+                    </button>
+                  )}
+                </div>
+
                 {/* Top Pagination */}
                 {renderPagination("top")}
 
                 <div className="jobs-list" id="jobsList">
                   {paginatedJobs.length > 0 ? (
                     paginatedJobs.map(j => (
-                      <article key={j.id} className="panel job-card" data-id={j.id}>
+                      <article key={j.id} className="panel job-card" data-id={j.id} style={j.isSponsored ? { border: "2px solid #f59e0b", background: "#fffdfa" } : undefined}>
                         <div>
-                          <h3>{j.title}</h3>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                            <h3 style={{ margin: 0 }}>{j.title}</h3>
+                            {j.isSponsored && (
+                              <span style={{
+                                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                                color: "#ffffff",
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                fontSize: "10.5px",
+                                fontWeight: 850,
+                                letterSpacing: "0.03em"
+                              }}>
+                                ⭐ SPONSORED
+                              </span>
+                            )}
+                          </div>
                           <div className="meta">
                             <span>{j.company}</span>
                             <span>•</span>
@@ -3085,25 +3348,64 @@ export default function HomePage() {
                             >
                               View Details
                             </button>
+                            <button
+                              type="button"
+                              className={`btn ${savedJobs.includes(j.id) ? "btn-warning" : "btn-light"} job-action-btn`}
+                              id={`saveJobBtn-${j.id}`}
+                              onClick={() => handleToggleSaveJob(j)}
+                              title={savedJobs.includes(j.id) ? "Remove from saved jobs" : "Save this job"}
+                              style={{
+                                fontSize: "12.5px",
+                                padding: "6px 12px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                background: savedJobs.includes(j.id) ? "#fef3c7" : undefined,
+                                color: savedJobs.includes(j.id) ? "#92400e" : undefined,
+                                borderColor: savedJobs.includes(j.id) ? "#fde68a" : undefined
+                              }}
+                            >
+                              <span>{savedJobs.includes(j.id) ? "⭐ Saved" : "☆ Save"}</span>
+                            </button>
                           </div>
                         </div>
                       </article>
                     ))
                   ) : (
                     <div className="panel" style={{ padding: "48px 24px", textAlign: "center", color: "#5d7486" }}>
-                      <span style={{ fontSize: "40px", display: "block", marginBottom: "12px" }}>🏢</span>
-                      <h3 style={{ fontSize: "22px", fontWeight: 850, color: "#0c3365", margin: "0 0 6px" }}>No jobs found</h3>
-                      <p style={{ margin: "0 0 16px", color: "#708999", fontSize: "14.5px" }}>
-                        New community job listings will appear here once employers post them.
-                      </p>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={handleChooseHiring}
-                        style={{ fontSize: "14px", padding: "10px 20px" }}
-                      >
-                        + Post the First Job ($25)
-                      </button>
+                      {viewSavedOnly ? (
+                        <>
+                          <span style={{ fontSize: "40px", display: "block", marginBottom: "12px" }}>⭐</span>
+                          <h3 style={{ fontSize: "22px", fontWeight: 850, color: "#0c3365", margin: "0 0 6px" }}>No saved jobs yet</h3>
+                          <p style={{ margin: "0 0 16px", color: "#708999", fontSize: "14.5px" }}>
+                            Click the &quot;☆ Save&quot; button on any job card to bookmark it and easily view it here anytime.
+                          </p>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => setViewSavedOnly(false)}
+                            style={{ fontSize: "14px", padding: "10px 20px" }}
+                          >
+                            Browse All Jobs
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: "40px", display: "block", marginBottom: "12px" }}>🏢</span>
+                          <h3 style={{ fontSize: "22px", fontWeight: 850, color: "#0c3365", margin: "0 0 6px" }}>No jobs found</h3>
+                          <p style={{ margin: "0 0 16px", color: "#708999", fontSize: "14.5px" }}>
+                            New community job listings will appear here once employers post them.
+                          </p>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleChooseHiring}
+                            style={{ fontSize: "14px", padding: "10px 20px" }}
+                          >
+                            + Post the First Job ($35)
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -3703,6 +4005,48 @@ export default function HomePage() {
               </h2>
             </div>
 
+            {authPromptedFromProfile && (
+              <div
+                style={{
+                  background: "#eff6ff",
+                  border: "1.5px solid #bfdbfe",
+                  borderRadius: "12px",
+                  padding: "10px 14px",
+                  marginBottom: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px"
+                }}
+              >
+                <div style={{ fontSize: "12.5px", color: "#1e40af", fontWeight: 600 }}>
+                  <strong>Optional:</strong> Create a free account to save your profile & get matched faster!
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalOpen(false);
+                    setAuthPromptedFromProfile(false);
+                    setTimeout(() => {
+                      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 100);
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#6b7280",
+                    fontWeight: 700,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  Skip for now →
+                </button>
+              </div>
+            )}
+
             {authTab !== "forgot" && (
               <div className="auth-tabs">
                 <button
@@ -3993,6 +4337,33 @@ export default function HomePage() {
                 </button>
               </>
             )}
+
+            {authPromptedFromProfile && (
+              <div style={{ marginTop: "16px", textAlign: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalOpen(false);
+                    setAuthPromptedFromProfile(false);
+                    setTimeout(() => {
+                      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 100);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#64748b",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    padding: "8px 14px",
+                    textDecoration: "underline"
+                  }}
+                >
+                  Skip for now & browse jobs →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -4267,6 +4638,159 @@ export default function HomePage() {
                   {resumeSaved ? "✓ Saved" : "Save Resume to Profile →"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employer Subscription Management Modal */}
+      {subscriptionModalOpen && (
+        <div
+          className="modal open"
+          id="subscriptionModal"
+          onClick={() => setSubscriptionModalOpen(false)}
+        >
+          <div
+            className="modal-box"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: "560px", padding: "28px" }}
+          >
+            <div className="modal-head" style={{ marginBottom: "16px" }}>
+              <div>
+                <span className="privacy-chip" style={{ background: "#ecfdf5", color: "#065f46" }}>
+                  👑 Employer Membership
+                </span>
+                <h3 style={{ margin: "4px 0 0", fontSize: "22px", fontWeight: 900, color: "#092040" }}>
+                  Manage Subscription
+                </h3>
+                <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                  Post unlimited standard & community jobs with no per-listing fees.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setSubscriptionModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Plan Card */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)",
+                borderRadius: "16px",
+                padding: "20px 22px",
+                color: "#ffffff",
+                marginBottom: "20px",
+                boxShadow: "0 10px 25px rgba(15, 23, 42, 0.25)"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#93c5fd", fontWeight: 800 }}>
+                    Monthly Plan
+                  </div>
+                  <h4 style={{ margin: "2px 0 4px", fontSize: "20px", fontWeight: 900 }}>
+                    Unlimited Employer Plan
+                  </h4>
+                  <div style={{ fontSize: "13px", color: "#cbd5e1" }}>
+                    $100.00 / month &nbsp;•&nbsp; Billed automatically via Stripe
+                  </div>
+                </div>
+                <span
+                  style={{
+                    background: "rgba(16, 185, 129, 0.2)",
+                    border: "1px solid #10b981",
+                    color: "#6ee7b7",
+                    padding: "3px 10px",
+                    borderRadius: "999px",
+                    fontSize: "11px",
+                    fontWeight: 800
+                  }}
+                >
+                  Active / Available
+                </span>
+              </div>
+            </div>
+
+            {/* Plan Perks */}
+            <div style={{ marginBottom: "22px" }}>
+              <div style={{ fontSize: "12.5px", fontWeight: 800, textTransform: "uppercase", color: "#475569", letterSpacing: "0.05em", marginBottom: "10px" }}>
+                Included in Your $100/mo Plan:
+              </div>
+              <div style={{ display: "grid", gap: "8px", fontSize: "13.5px", color: "#334155" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>
+                  <span><strong>Unlimited Job Listings</strong> — post anytime with $0 per-post fee ($35 saved each time).</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>
+                  <span><strong>Automatic SMS Match Alerts</strong> dispatched to candidates immediately upon publishing.</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>
+                  <span><strong>Verified Employer Badge</strong> on all your community listings.</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>
+                  <span><strong>Direct Candidate Inquiries</strong> via phone, WhatsApp, and formatted PDF resumes.</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>
+                  <span><strong>Self-Service Management</strong> — update payment cards or cancel anytime with one click on Stripe.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <a
+                href={STRIPE_PAYMENT_LINKS.unlimitedMonthly}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+                style={{
+                  width: "100%",
+                  padding: "13px",
+                  fontSize: "14.5px",
+                  fontWeight: 800,
+                  textAlign: "center",
+                  background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
+                  boxShadow: "0 6px 18px rgba(22, 163, 74, 0.25)",
+                  textDecoration: "none"
+                }}
+              >
+                👑 Subscribe to Unlimited Plan ($100/mo) via Stripe →
+              </a>
+
+              <a
+                href={STRIPE_PAYMENT_LINKS.billingPortal}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-light"
+                style={{
+                  width: "100%",
+                  padding: "11px",
+                  fontSize: "13.5px",
+                  fontWeight: 750,
+                  textAlign: "center",
+                  textDecoration: "none",
+                  color: "#334155"
+                }}
+              >
+                💳 Manage Billing, Invoices & Payment Methods on Stripe
+              </a>
+
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={() => setSubscriptionModalOpen(false)}
+                style={{ width: "100%", padding: "9px", fontSize: "13px", color: "#64748b" }}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
