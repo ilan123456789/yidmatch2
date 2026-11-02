@@ -273,6 +273,7 @@ export default function HomePage() {
   const [entryGateOpen, setEntryGateOpen] = useState(true);
   const [profileGateOpen, setProfileGateOpen] = useState(false);
   const [employerGateOpen, setEmployerGateOpen] = useState(false);
+  const [hiringSource, setHiringSource] = useState<"front" | "jobs">("front");
   const [showBackToStart, setShowBackToStart] = useState(false);
 
   // Auth Modal State
@@ -735,6 +736,16 @@ export default function HomePage() {
     }
   }, [user]);
 
+  // Check URL query parameters for direct modal actions (e.g. ?action=create-resume)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("action") === "create-resume" || params.get("resume") === "true") {
+        setResumeModalOpen(true);
+      }
+    }
+  }, []);
+
   // Close user profile dropdown when clicking outside
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -886,13 +897,31 @@ export default function HomePage() {
     }, 100);
   };
 
-  const handleChooseHiring = () => {
-    dismissEntryGate("#jobs");
+  const handleChooseHiring = (source: "front" | "jobs" = "front") => {
+    setHiringSource(source);
+    if (source === "front") {
+      setEntryGateOpen(false);
+      setShowBackToStart(false);
+    } else {
+      dismissEntryGate("#jobs");
+    }
     setProfileGateOpen(false);
     setEmployerGateOpen(true);
     setEmployerStep(1);
     setEmployerSubmitted(false);
     setEmployerApproved(false);
+  };
+
+  const handleCloseEmployerGate = () => {
+    setEmployerGateOpen(false);
+    if (hiringSource === "front") {
+      handleBackToStart();
+    } else {
+      setShowBackToStart(true);
+      if (typeof window !== "undefined") {
+        history.replaceState(null, "", "#jobs");
+      }
+    }
   };
 
   const handleEntrySignIn = () => {
@@ -1067,7 +1096,7 @@ export default function HomePage() {
 
   const handleEmployerNext2 = () => {
     if (!empCountry || !empLocation.trim() || !empPayMin.trim()) {
-      showToast("Please add the country, location, and minimum pay.");
+      showToast("Please add the country, location, and perferred pay.");
       return;
     }
     setEmployerStep(3);
@@ -1411,7 +1440,7 @@ export default function HomePage() {
               type="button"
               className="role-card"
               id="chooseHiring"
-              onClick={handleChooseHiring}
+              onClick={() => handleChooseHiring("front")}
             >
               <span className="role-icon">💼</span>
               <span className="role-copy">
@@ -1773,7 +1802,7 @@ export default function HomePage() {
                     </select>
                   </div>
                   <div className="field">
-                    <label>Minimum pay</label>
+                    <label>Preferred pay</label>
                     <DropdownWithCustom
                       id="profileMinPay"
                       value={profileMinPay}
@@ -1784,7 +1813,7 @@ export default function HomePage() {
                         { value: "25", label: "$25+/hr" },
                         { value: "30", label: "$30+/hr" },
                       ]}
-                      customPlaceholder="Enter desired minimum pay..."
+                      customPlaceholder="Enter desired preferred pay..."
                     />
                   </div>
                 </div>
@@ -1852,8 +1881,9 @@ export default function HomePage() {
         aria-modal="true"
         aria-labelledby="employerTitle"
         onClick={(e) => {
-          if ((e.target as HTMLElement).id === "employerGate") {
-            handleBackToStart();
+          const target = e.target as HTMLElement;
+          if (!target.closest(".employer-card") && !target.closest(".employer-top")) {
+            handleCloseEmployerGate();
           }
         }}
       >
@@ -1863,16 +1893,16 @@ export default function HomePage() {
               type="button"
               className="btn btn-light"
               id="employerBack"
-              onClick={handleBackToStart}
+              onClick={handleCloseEmployerGate}
             >
-              ← Back to Choice
+              {hiringSource === "front" ? "← Back to Choice" : "← Back to Jobs"}
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 
               <button
                 type="button"
                 className="btn btn-light"
-                onClick={handleBackToStart}
+                onClick={handleCloseEmployerGate}
                 style={{ padding: "6px 12px", fontSize: "13px" }}
               >
                 ✕ Close
@@ -1880,7 +1910,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="employer-card employer-single-card" style={{ padding: "30px 32px" }}>
+          <div className="employer-card employer-single-card">
             <div className="employer-intro" style={{ marginBottom: "24px" }}>
               <div>
                 <span className="privacy-chip">💼 Post a Job · Direct & Verified</span>
@@ -2300,18 +2330,7 @@ export default function HomePage() {
                 </div>
 
                 {/* SINGLE PAY FIELD (REPLACING MIN & MAX) */}
-                <div className="field">
-                  <label>Currency</label>
-                  <DropdownWithCustom
-                    id="empCurrency"
-                    value={empCurrency}
-                    onChange={setEmpCurrency}
-                    options={["USD $", "GBP £", "ILS ₪", "CAD C$", "EUR €"]}
-                    customPlaceholder="e.g. AUD, CHF..."
-                  />
-                </div>
-
-                <div className="field" style={{ gridColumn: "span 2" }}>
+                <div className="field full-width">
                   <label>
                     Pay / Rate <span className="required-star">*</span>
                     <span className="helper">Enter the compensation (e.g. 25, $25–$35/hr, $150 flat, $65k/year)</span>
@@ -2324,6 +2343,17 @@ export default function HomePage() {
                       setEmpPayRate(e.target.value);
                       setEmpPayMin(e.target.value);
                     }}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Currency</label>
+                  <DropdownWithCustom
+                    id="empCurrency"
+                    value={empCurrency}
+                    onChange={setEmpCurrency}
+                    options={["USD $", "GBP £", "ILS ₪", "CAD C$", "EUR €"]}
+                    customPlaceholder="e.g. AUD, CHF..."
                   />
                 </div>
 
@@ -2677,14 +2707,12 @@ export default function HomePage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                       <div>
                         <div style={{ fontSize: "15px", fontWeight: 850, color: "#092040" }}>Standard Listing</div>
-                        <div style={{ fontSize: "12px", color: "#64748b" }}>30-Day live post</div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>Live post</div>
                       </div>
                       <span style={{ fontSize: "24px", fontWeight: 900, color: "#092040" }}>$35</span>
                     </div>
                     <ul style={{ margin: "10px 0 16px", paddingLeft: "18px", fontSize: "12.5px", color: "#475569", lineHeight: 1.6 }}>
-                      <li>✓ Active for 30 full days</li>
-                      <li>✓ Candidate resumes to email</li>
-                      <li>✓ Instant SMS match notifications</li>
+                      <li>✓ Basic job listing</li>
                     </ul>
                     <button
                       type="button"
@@ -2765,7 +2793,7 @@ export default function HomePage() {
                     <ul style={{ margin: "10px 0 16px", paddingLeft: "18px", fontSize: "12.5px", color: "#166534", lineHeight: 1.6 }}>
                       <li>✓ <strong>Post unlimited jobs</strong> all month</li>
                       <li>✓ No per-listing fees ($35 saved each)</li>
-                      <li>✓ Self-service cancel on Stripe</li>
+                      <li>✓ Cancel Anytime</li>
                     </ul>
                     <button
                       type="button"
@@ -2791,7 +2819,8 @@ export default function HomePage() {
         id="backToStart"
         onClick={handleBackToStart}
       >
-        ← Choose Job Seeking / Hiring
+        <span className="back-text-full">← Choose Job Seeking / Hiring</span>
+        <span className="back-text-short">← Choose Role</span>
       </button>
 
       {/* Floating Contact Owner Button */}
@@ -2952,13 +2981,26 @@ export default function HomePage() {
                   )}
                 </div>
 
+                <button
+                  type="button"
+                  className="topbar-resume-btn"
+                  id="userTopbarResumeBtn"
+                  onClick={() => setResumeModalOpen(true)}
+                  title="Make a Resume"
+                >
+                  <span className="resume-icon">📄</span>
+                  <span className="resume-text-full">Make a Resume</span>
+                  <span className="resume-text-short">Resume</span>
+                </button>
+
                 {user.role === "EMPLOYER" ? (
                   <button
                     type="button"
                     className="btn btn-primary topbar-post-job-btn"
-                    onClick={handleChooseHiring}
+                    onClick={() => handleChooseHiring("jobs")}
                   >
-                    Post a Job
+                    <span className="post-job-text-full">Post a Job</span>
+                    <span className="post-job-text-short">Post Job</span>
                   </button>
                 ) : null}
               </div>
@@ -3051,10 +3093,23 @@ export default function HomePage() {
 
                 <button
                   type="button"
-                  className="btn btn-primary topbar-post-job-btn"
-                  onClick={handleChooseHiring}
+                  className="topbar-resume-btn"
+                  id="guestTopbarResumeBtn"
+                  onClick={() => setResumeModalOpen(true)}
+                  title="Make a Resume"
                 >
-                  Post a Job
+                  <span className="resume-icon">📄</span>
+                  <span className="resume-text-full">Make a Resume</span>
+                  <span className="resume-text-short">Resume</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary topbar-post-job-btn"
+                  onClick={() => handleChooseHiring("jobs")}
+                >
+                  <span className="post-job-text-full">Post a Job</span>
+                  <span className="post-job-text-short">Post Job</span>
                 </button>
               </div>
             )}
@@ -3169,7 +3224,7 @@ export default function HomePage() {
                   />
                 </div>
                 <div className="field">
-                  <label>Minimum pay</label>
+                  <label>Preferred pay</label>
                   <DropdownWithCustom
                     id="payFilter"
                     value={payFilter}
@@ -3399,7 +3454,7 @@ export default function HomePage() {
                           <button
                             type="button"
                             className="btn btn-primary"
-                            onClick={handleChooseHiring}
+                            onClick={() => handleChooseHiring("jobs")}
                             style={{ fontSize: "14px", padding: "10px 20px" }}
                           >
                             + Post the First Job ($35)
@@ -3433,7 +3488,7 @@ export default function HomePage() {
           </div>
           <div className="foot-links">
             <a href="#jobs">Jobs</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); handleChooseHiring(); }}>For Employers</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleChooseHiring("jobs"); }}>For Employers</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setContactModalOpen(true); }}>💬 Contact Owner</a>
             <a href="#" onClick={(e) => { e.preventDefault(); showToast("Privacy policy placeholder."); }}>Privacy</a>
           </div>
@@ -3926,7 +3981,7 @@ export default function HomePage() {
                       />
                     </div>
                     <div className="field">
-                      <label style={{ fontWeight: "700", color: "#092040" }}>Minimum Pay</label>
+                      <label style={{ fontWeight: "700", color: "#092040" }}>Preferred Pay</label>
                       <DropdownWithCustom
                         id="alertMinPayInput"
                         value={alertMinPay}
@@ -3939,7 +3994,7 @@ export default function HomePage() {
                           { value: "35", label: "$35+/hr" },
                           { value: "40", label: "$40+/hr" },
                         ]}
-                        customPlaceholder="Enter custom minimum pay (e.g. $45+/hr)..."
+                        customPlaceholder="Enter custom preferred pay (e.g. $45+/hr)..."
                       />
                     </div>
                   </div>

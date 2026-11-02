@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { NEIGHBORHOOD_OPTIONS, HEIMISH_PERK_OPTIONS } from "@/lib/seed-data";
-import { 
-  Building2, 
-  MapPin, 
-  DollarSign, 
-  Briefcase, 
-  ShieldCheck, 
-  CreditCard, 
-  Lock, 
-  Sparkles, 
+import {
+  Building2,
+  MapPin,
+  DollarSign,
+  Briefcase,
+  ShieldCheck,
+  CreditCard,
+  Lock,
+  Sparkles,
   ArrowRight,
   CheckCircle,
   AlertCircle
@@ -165,11 +165,10 @@ export default function PostJobPage() {
                   const isCurrent = jobType === "Same-Day / Short-term";
                   setJobType(isCurrent ? "Full-Time" : "Same-Day / Short-term");
                 }}
-                className={`p-4 rounded-xl border-2 transition cursor-pointer flex items-center justify-between ${
-                  jobType === "Same-Day / Short-term"
+                className={`p-4 rounded-xl border-2 transition cursor-pointer flex items-center justify-between ${jobType === "Same-Day / Short-term"
                     ? "bg-green-50 border-green-500 shadow-md shadow-green-100"
                     : "bg-slate-50 border-slate-200 hover:border-green-300"
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-3">
                   <span className="text-2xl">⚡</span>
@@ -177,11 +176,10 @@ export default function PostJobPage() {
                     <div className="flex items-center space-x-2">
                       <span className="font-bold text-slate-900 text-sm">Same-Day / Immediate Hiring</span>
                       <span
-                        className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
-                          jobType === "Same-Day / Short-term"
+                        className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${jobType === "Same-Day / Short-term"
                             ? "bg-green-600 text-white"
                             : "bg-slate-200 text-slate-600"
-                        }`}
+                          }`}
                       >
                         Urgent Gig
                       </span>
@@ -192,14 +190,12 @@ export default function PostJobPage() {
                   </div>
                 </div>
                 <div
-                  className={`w-12 h-6 rounded-full transition relative flex-shrink-0 ${
-                    jobType === "Same-Day / Short-term" ? "bg-green-600 shadow-lg shadow-green-500/50" : "bg-slate-300"
-                  }`}
+                  className={`w-12 h-6 rounded-full transition relative flex-shrink-0 ${jobType === "Same-Day / Short-term" ? "bg-green-600 shadow-lg shadow-green-500/50" : "bg-slate-300"
+                    }`}
                 >
                   <div
-                    className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform shadow-md ${
-                      jobType === "Same-Day / Short-term" ? "translate-x-6" : "translate-x-0.5"
-                    }`}
+                    className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform shadow-md ${jobType === "Same-Day / Short-term" ? "translate-x-6" : "translate-x-0.5"
+                      }`}
                   />
                 </div>
               </div>
@@ -351,16 +347,15 @@ export default function PostJobPage() {
                 <div
                   key={perk}
                   onClick={() => togglePerk(perk)}
-                  className={`flex items-center space-x-3 p-3.5 rounded-xl border cursor-pointer transition select-none ${
-                    selected 
-                      ? "bg-amber-50/70 border-amber-300 text-slate-900 font-bold" 
+                  className={`flex items-center space-x-3 p-3.5 rounded-xl border cursor-pointer transition select-none ${selected
+                      ? "bg-amber-50/70 border-amber-300 text-slate-900 font-bold"
                       : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                  }`}
+                    }`}
                 >
                   <input
                     type="checkbox"
                     checked={selected}
-                    onChange={() => {}} // handled by parent div
+                    onChange={() => { }} // handled by parent div
                     className="w-4 h-4 text-brand-blue rounded border-slate-300 pointer-events-none"
                   />
                   <span className="text-xs sm:text-sm">{perk}</span>
@@ -426,7 +421,7 @@ export default function PostJobPage() {
               <span className="text-xs uppercase tracking-wider text-blue-400 font-bold">
                 Order Summary
               </span>
-              <h3 className="text-xl font-extrabold text-white">YID MATCH 30-Day Listing</h3>
+              <h3 className="text-xl font-extrabold text-white">YID MATCH Listing</h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 Full-featured standard job listing with candidate resume tracking
               </p>

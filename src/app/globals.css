@@ -427,6 +427,10 @@ h1 {
   margin-bottom: 16px;
 }
 
+.field.full-width {
+  grid-column: span 2;
+}
+
 .field label {
   display: block;
   font-size: 12px;
@@ -4283,6 +4287,75 @@ body:has(.entry-gate:not(.hidden)) .bsd-tag {
   flex-shrink: 0 !important;
 }
 
+.topbar-resume-btn {
+  white-space: nowrap !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  font-size: 13.5px !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  background: #ffffff !important;
+  color: #1e72c8 !important;
+  border: 1.5px solid #bfdbfe !important;
+  box-shadow: 0 2px 8px rgba(30, 114, 200, 0.1) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  flex-shrink: 0 !important;
+  text-decoration: none !important;
+}
+
+.topbar-resume-btn:hover {
+  background: #f0f7ff !important;
+  border-color: #3b82f6 !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 4px 14px rgba(30, 114, 200, 0.22) !important;
+  transform: translateY(-1px) !important;
+}
+
+.topbar-resume-btn:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+.topbar-resume-btn .resume-icon {
+  font-size: 14.5px !important;
+  line-height: 1 !important;
+}
+
+.resume-text-full {
+  display: inline;
+}
+.resume-text-short {
+  display: none;
+}
+.post-job-text-full {
+  display: inline;
+}
+.post-job-text-short {
+  display: none;
+}
+
+.back-text-full {
+  display: inline;
+}
+.back-text-short {
+  display: none;
+}
+.footer-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+body:has(.employer-gate.show),
+body:has(.profile-gate.show) {
+  overflow: hidden;
+}
+
 @media (max-width: 768px) {
   .topbar-brand-logo {
     height: 32px !important;
@@ -4295,12 +4368,20 @@ body:has(.entry-gate:not(.hidden)) .bsd-tag {
     white-space: nowrap !important;
     border-radius: 8px !important;
   }
+  .topbar-resume-btn {
+    height: 36px !important;
+    padding: 0 11px !important;
+    font-size: 12.5px !important;
+    white-space: nowrap !important;
+    border-radius: 8px !important;
+    gap: 4px !important;
+  }
   .nav {
     height: 60px !important;
-    padding-right: 14px !important;
-    padding-left: 14px !important;
+    padding-right: 54px !important;
+    padding-left: 12px !important;
     justify-content: space-between !important;
-    gap: 10px !important;
+    gap: 8px !important;
   }
   .profile-top {
     display: flex !important;
@@ -4322,8 +4403,416 @@ body:has(.entry-gate:not(.hidden)) .bsd-tag {
     padding: 2px 6px !important;
     z-index: 99 !important;
   }
+
+  /* Full-width, single column form layouts on mobile */
+  .employer-gate,
+  .profile-gate {
+    padding: 14px 10px !important;
+    align-items: flex-start !important;
+  }
+  .employer-wrap,
+  .profile-wrap {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  .employer-card,
+  .employer-single-card,
+  .profile-card {
+    padding: 22px 16px !important;
+    border-radius: 20px !important;
+    box-shadow: 0 8px 30px rgba(8, 28, 59, 0.08) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .employer-intro {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: flex-start !important;
+    margin-bottom: 20px !important;
+  }
+  .employer-section-block {
+    padding: 18px 14px !important;
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+    background: #fbfdff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .employer-section-header {
+    gap: 10px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 14px !important;
+  }
+  .employer-section-header .sicon {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 16px !important;
+    flex: 0 0 32px !important;
+  }
+  .employer-section-header h3 {
+    font-size: 16px !important;
+  }
+
+  /* Force single column stack for all form-grid containers */
+  .form-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+  .form-grid > .field,
+  .form-grid > div,
+  .form-grid > * {
+    grid-column: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .field {
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .field label {
+    font-size: 11.5px !important;
+    font-weight: 850 !important;
+    letter-spacing: 0.04em !important;
+    margin-bottom: 6px !important;
+    color: #475569 !important;
+    display: block !important;
+  }
+  .field label .helper {
+    font-size: 11px !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+    display: block !important;
+    margin-top: 3px !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Clean, spacious mobile inputs and dropdowns */
+  .field input,
+  .field select,
+  .field textarea {
+    height: 48px !important;
+    font-size: 15.5px !important; /* Prevents auto-zoom on iOS */
+    padding: 10px 14px !important;
+    border-radius: 11px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
+  }
+  .field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 14px center !important;
+    background-size: 16px 16px !important;
+    padding-right: 40px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+  .field textarea {
+    height: auto !important;
+    min-height: 100px !important;
+    padding: 12px 14px !important;
+    line-height: 1.5 !important;
+  }
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: #1e72c8 !important;
+    box-shadow: 0 0 0 3px rgba(30, 114, 200, 0.18) !important;
+    background: #ffffff !important;
+  }
+
+  /* Same-Day Hiring Toggle Banner on Mobile */
+  .same-day-banner-card {
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+  .same-day-banner-card p {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Modals on Mobile - scrollable and comfortable fit */
+  .modal {
+    align-items: flex-start !important;
+    padding: 14px 10px 40px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .modal-box {
+    max-height: none !important;
+    margin: 12px auto !important;
+    padding: 20px 16px 24px !important;
+    border-radius: 18px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
 }
 
+@media (max-width: 640px) {
+  .back-text-full {
+    display: none !important;
+  }
+  .back-text-short {
+    display: inline !important;
+  }
+}
 
+/* ==================== SAME-DAY GIGS RESPONSIVE STYLES ==================== */
+.same-day-hero-banner {
+  background: linear-gradient(135deg, #092040 0%, #064e3b 100%);
+  border-radius: 20px;
+  padding: 24px 26px;
+  color: #ffffff;
+  margin-bottom: 20px;
+  box-shadow: 0 12px 32px rgba(9, 32, 64, 0.16);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
 
+.same-day-search-card {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 20px;
+}
+
+.same-day-urgency-pills {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.same-day-filters-panel {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.same-day-filters-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.same-day-filters-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.same-day-empty-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 40px 28px;
+  text-align: center;
+  box-shadow: 0 14px 40px rgba(8, 28, 59, 0.06);
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.same-day-suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .same-day-hero-banner {
+    padding: 18px 16px !important;
+    border-radius: 16px !important;
+    margin-bottom: 14px !important;
+  }
+  .same-day-hero-banner h1 {
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 6px !important;
+  }
+  .same-day-hero-banner p {
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+  .same-day-search-card {
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    margin-bottom: 14px !important;
+  }
+  .same-day-search-card .search-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .same-day-search-card .search-box {
+    height: 44px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border-radius: 10px !important;
+    padding: 0 10px !important;
+  }
+  .same-day-search-card .search-box input {
+    font-size: 14px !important;
+    width: 100% !important;
+  }
+  .same-day-search-card .btn-primary {
+    height: 44px !important;
+    width: 100% !important;
+    font-size: 14.5px !important;
+    border-radius: 10px !important;
+  }
+  .same-day-urgency-pills {
+    margin-top: 10px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    padding-bottom: 6px !important;
+    gap: 6px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .same-day-urgency-pills::-webkit-scrollbar {
+    display: none !important;
+  }
+  .same-day-urgency-pills > button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 11.5px !important;
+    padding: 4px 10px !important;
+  }
+  .same-day-filters-panel {
+    padding: 14px !important;
+    border-radius: 16px !important;
+    margin-bottom: 14px !important;
+  }
+  .same-day-filters-head {
+    margin-bottom: 10px !important;
+  }
+  .same-day-filters-head h3 {
+    font-size: 15px !important;
+  }
+  .same-day-filters-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .same-day-filters-grid .field {
+    margin-bottom: 0 !important;
+  }
+  .same-day-filters-grid .field label {
+    font-size: 11px !important;
+    margin-bottom: 3px !important;
+    font-weight: 800 !important;
+    color: #475569 !important;
+  }
+  .same-day-filters-grid .field select {
+    height: 38px !important;
+    font-size: 13px !important;
+    padding: 6px 10px !important;
+    border-radius: 9px !important;
+  }
+  .same-day-empty-card {
+    padding: 24px 14px !important;
+    border-radius: 18px !important;
+  }
+  .same-day-empty-card h3 {
+    font-size: 19px !important;
+  }
+  .same-day-empty-card p {
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+  .same-day-suggestion-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .resume-text-full {
+    display: none !important;
+  }
+  .resume-text-short {
+    display: inline !important;
+  }
+  .post-job-text-full {
+    display: none !important;
+  }
+  .post-job-text-short {
+    display: inline !important;
+  }
+  .topbar-resume-btn {
+    height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 11.5px !important;
+    gap: 4px !important;
+  }
+  .topbar-post-job-btn {
+    height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 11.5px !important;
+  }
+  .auth-user-chip-btn {
+    padding: 3px 8px 3px 4px !important;
+    gap: 6px !important;
+  }
+  .user-avatar-circle {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 11px !important;
+  }
+  .user-display-name {
+    font-size: 11.5px !important;
+  }
+  .auth-role-tag {
+    font-size: 9px !important;
+    padding: 0 4px !important;
+  }
+  .topbar-brand-logo {
+    max-width: 95px !important;
+    height: 26px !important;
+  }
+  .nav {
+    padding-right: 42px !important;
+    padding-left: 8px !important;
+    gap: 6px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .user-name-role {
+    display: none !important;
+  }
+  .dropdown-chevron {
+    display: none !important;
+  }
+  .auth-user-chip-btn {
+    padding: 3px !important;
+    border-radius: 50% !important;
+  }
+  .topbar-resume-btn {
+    padding: 0 6px !important;
+  }
+  .topbar-post-job-btn {
+    padding: 0 6px !important;
+  }
+}
 
