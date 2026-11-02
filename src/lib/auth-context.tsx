@@ -9,7 +9,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   signInWithPopup,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  updateProfile
 } from "firebase/auth";
 
 interface AuthContextType {
@@ -34,27 +35,6 @@ const AuthContext = createContext<AuthContextType>({
   switchDemoRole: () => {},
 });
 
-export const DEMO_EMPLOYER: UserProfile = {
-  uid: "emp-demo",
-  email: "employer@yidmatch.com",
-  name: "Chaim Berkowitz",
-  role: "EMPLOYER",
-  companyName: "Prime Wholesale Group",
-  phone: "(732) 555-0199",
-  location: "Lakewood, NJ",
-  createdAt: new Date().toISOString(),
-};
-
-export const DEMO_SEEKER: UserProfile = {
-  uid: "seeker-demo",
-  email: "seeker@yidmatch.com",
-  name: "Shimon Klein",
-  role: "SEEKER",
-  phone: "(718) 555-0144",
-  location: "Boro Park, NY",
-  createdAt: new Date().toISOString(),
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,10 +42,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize auth state
   useEffect(() => {
     // Check if we have a saved session in localStorage
-    const saved = localStorage.getItem("yidmatch_current_user");
+    const saved = typeof window !== "undefined" ? localStorage.getItem("yidmatch_current_user") : null;
     if (saved) {
       try {
-        setUser(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Clean out any old temporary demo accounts
+        if (parsed?.uid === "emp-demo" || parsed?.uid === "seeker-demo") {
+          localStorage.removeItem("yidmatch_current_user");
+        } else {
+          setUser(parsed);
+        }
       } catch (e) {
         console.error("Failed to parse stored user", e);
       }
@@ -75,7 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
-          // Fetch profile from /api/auth/me or initialize profile
           try {
             const res = await fetch(`/api/auth/me?uid=${firebaseUser.uid}`);
             let resUser: UserProfile | null = null;
@@ -105,9 +90,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (err) {
             console.warn("Could not sync with /api/auth/me", err);
           }
+        } else {
+          // Firebase signed out
+          setUser(null);
+          localStorage.removeItem("yidmatch_current_user");
         }
+        setLoading(false);
       });
-      setLoading(false);
       return () => unsubscribe();
     } else {
       setLoading(false);
@@ -116,10 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
-    // If Firebase Auth is active
+    if (!email.trim() || !pass) {
+      setLoading(false);
+      return { success: false, error: "Please enter your email and password." };
+    }
+
     if (auth) {
       try {
-        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
         let resUser: UserProfile | null = null;
         try {
           const res = await fetch(`/api/auth/me?uid=${cred.user.uid}`);
@@ -151,48 +144,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { success: true };
         }
       } catch (err: any) {
-        console.warn("Firebase signin error, checking local fallback:", err.message);
-        // If Firebase error is invalid password or user not found, continue to check API / Demo accounts
-      }
-    }
-
-    // Local / API fallback check
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: pass }),
-      });
-      if (res.ok) {
-        const text = await res.text();
-        if (text && text.trim()) {
-          const data = JSON.parse(text);
-          if (data?.user) {
-            setUser(data.user);
-            localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
-            setLoading(false);
-            return { success: true };
-          }
+        setLoading(false);
+        const code = err?.code || "";
+        if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+          return { success: false, error: "Incorrect email or password." };
         }
+        if (code === "auth/user-not-found") {
+          return { success: false, error: "No account found with this email. Please create an account." };
+        }
+        if (code === "auth/invalid-email") {
+          return { success: false, error: "Please enter a valid email address." };
+        }
+        if (code === "auth/too-many-requests") {
+          return { success: false, error: "Access temporarily blocked due to multiple failed attempts. Please reset password or try later." };
+        }
+        return { success: false, error: err.message || "Failed to sign in. Please verify your credentials." };
       }
-    } catch (_) {}
-
-    // Demo accounts check
-    if (email.toLowerCase() === DEMO_EMPLOYER.email) {
-      setUser(DEMO_EMPLOYER);
-      localStorage.setItem("yidmatch_current_user", JSON.stringify(DEMO_EMPLOYER));
-      setLoading(false);
-      return { success: true };
-    }
-    if (email.toLowerCase() === DEMO_SEEKER.email) {
-      setUser(DEMO_SEEKER);
-      localStorage.setItem("yidmatch_current_user", JSON.stringify(DEMO_SEEKER));
-      setLoading(false);
-      return { success: true };
     }
 
     setLoading(false);
-    return { success: false, error: "Invalid email or password. You can also use the 1-click demo accounts." };
+    return { success: false, error: "Authentication service unavailable. Please check your connection." };
   };
 
   const signup = async (data: {
@@ -205,58 +176,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     location?: string;
   }): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
+    if (!data.email.trim() || !data.pass || !data.name.trim()) {
+      setLoading(false);
+      return { success: false, error: "Please fill in all required fields." };
+    }
+
+    if (data.pass.length < 6) {
+      setLoading(false);
+      return { success: false, error: "Password must be at least 6 characters long." };
+    }
+
     try {
       let uid = "usr-" + Date.now();
       if (auth) {
         try {
-          const cred = await createUserWithEmailAndPassword(auth, data.email, data.pass);
+          const cred = await createUserWithEmailAndPassword(auth, data.email.trim(), data.pass);
           uid = cred.user.uid;
+          if (data.name.trim()) {
+            await updateProfile(cred.user, { displayName: data.name.trim() });
+          }
         } catch (e: any) {
-          console.warn("Firebase signup warning:", e.message);
+          setLoading(false);
+          const code = e?.code || "";
+          if (code === "auth/email-already-in-use") {
+            return { success: false, error: "An account with this email address already exists. Please sign in." };
+          }
+          if (code === "auth/weak-password") {
+            return { success: false, error: "Password should be at least 6 characters." };
+          }
+          if (code === "auth/invalid-email") {
+            return { success: false, error: "Invalid email address format." };
+          }
+          return { success: false, error: e.message || "Could not complete registration." };
         }
       }
 
-      let resUser: UserProfile | null = null;
+      const profile: UserProfile = {
+        uid,
+        email: data.email.trim(),
+        name: data.name.trim(),
+        role: data.role,
+        companyName: data.companyName?.trim() || undefined,
+        phone: data.phone?.trim() || undefined,
+        location: data.location?.trim() || undefined,
+        createdAt: new Date().toISOString()
+      };
+
       try {
-        const res = await fetch("/api/auth/register", {
+        await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...data, uid }),
+          body: JSON.stringify(profile),
         });
-        if (res.ok) {
-          const text = await res.text();
-          if (text && text.trim()) {
-            const resData = JSON.parse(text);
-            if (resData?.user) resUser = resData.user;
-          }
-        }
       } catch (_) {}
 
-      if (resUser) {
-        setUser(resUser);
-        localStorage.setItem("yidmatch_current_user", JSON.stringify(resUser));
-        setLoading(false);
-        return { success: true };
-      } else {
-        // Fallback local creation
-        const newUser: UserProfile = {
-          uid,
-          email: data.email,
-          name: data.name,
-          role: data.role,
-          companyName: data.companyName,
-          phone: data.phone,
-          location: data.location,
-          createdAt: new Date().toISOString()
-        };
-        setUser(newUser);
-        localStorage.setItem("yidmatch_current_user", JSON.stringify(newUser));
-        setLoading(false);
-        return { success: true };
-      }
+      setUser(profile);
+      localStorage.setItem("yidmatch_current_user", JSON.stringify(profile));
+      setLoading(false);
+      return { success: true };
     } catch (e: any) {
       setLoading(false);
-      return { success: false, error: e.message || "Sign up error" };
+      return { success: false, error: e.message || "Failed to create account" };
     }
   };
 
@@ -265,18 +245,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (auth && googleProvider) {
       try {
         const cred = await signInWithPopup(auth, googleProvider);
-        const res = await fetch(`/api/auth/me?uid=${cred.user.uid}`);
-        if (res.ok) {
-          try {
+        let resUser: UserProfile | null = null;
+        try {
+          const res = await fetch(`/api/auth/me?uid=${cred.user.uid}`);
+          if (res.ok) {
             const text = await res.text();
             if (text && text.trim()) {
               const data = JSON.parse(text);
-              if (data?.user) {
-                setUser(data.user);
-                localStorage.setItem("yidmatch_current_user", JSON.stringify(data.user));
-              }
+              if (data?.user) resUser = data.user;
             }
-          } catch (_) {}
+          }
+        } catch (_) {}
+
+        if (resUser) {
+          setUser(resUser);
+          localStorage.setItem("yidmatch_current_user", JSON.stringify(resUser));
         } else {
           const profile: UserProfile = {
             uid: cred.user.uid,
@@ -285,11 +268,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: role,
             createdAt: new Date().toISOString()
           };
-          await fetch("/api/auth/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(profile)
-          });
+          try {
+            await fetch("/api/auth/register", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(profile)
+            });
+          } catch (_) {}
           setUser(profile);
           localStorage.setItem("yidmatch_current_user", JSON.stringify(profile));
         }
@@ -297,35 +282,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       } catch (err: any) {
         setLoading(false);
-        return { success: false, error: err.message || "Google sign-in error" };
+        return { success: false, error: err.message || "Google sign-in was cancelled or encountered an error." };
       }
-    } else {
-      // Demo Google login when Firebase credentials pending
-      const demoUser: UserProfile = {
-        uid: "usr-google-" + Date.now(),
-        email: "google.user@example.com",
-        name: "Google Account User",
-        role: role,
-        createdAt: new Date().toISOString()
-      };
-      setUser(demoUser);
-      localStorage.setItem("yidmatch_current_user", JSON.stringify(demoUser));
-      setLoading(false);
-      return { success: true };
     }
+
+    setLoading(false);
+    return { success: false, error: "Google authentication is not available right now." };
   };
 
   const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    if (!email.trim()) {
+      return { success: false, error: "Please enter your email address." };
+    }
     if (auth) {
       try {
-        await sendPasswordResetEmail(auth, email);
+        await sendPasswordResetEmail(auth, email.trim());
         return { success: true };
       } catch (err: any) {
+        const code = err?.code || "";
+        if (code === "auth/user-not-found") {
+          return { success: false, error: "No account found with this email." };
+        }
         return { success: false, error: err.message || "Failed to send reset email" };
       }
-    } else {
-      return { success: true };
     }
+    return { success: false, error: "Service unavailable." };
   };
 
   const logout = async () => {
@@ -340,10 +321,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("yidmatch_current_user");
   };
 
-  const switchDemoRole = (role: UserRole) => {
-    const target = role === "EMPLOYER" ? DEMO_EMPLOYER : DEMO_SEEKER;
-    setUser(target);
-    localStorage.setItem("yidmatch_current_user", JSON.stringify(target));
+  const switchDemoRole = (_role: UserRole) => {
+    // Kept for backward compatibility
   };
 
   return (

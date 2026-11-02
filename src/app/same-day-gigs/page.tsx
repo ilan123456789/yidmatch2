@@ -3,9 +3,11 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
+import { db } from "@/lib/firebase/client";
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
 
 interface SameDayGig {
-  id: number;
+  id: number | string;
   icon: string;
   title: string;
   company: string;
@@ -21,141 +23,12 @@ interface SameDayGig {
   whatsapp?: string;
 }
 
-const INITIAL_SAME_DAY_GIGS: SameDayGig[] = [
-  {
-    id: 101,
-    icon: "⚡",
-    title: "2 Waiters Needed for Bar Mitzvah Tonight",
-    company: "Heimish Catering Hall",
-    location: "Boro Park, Brooklyn",
-    country: "United States",
-    category: "Simcha & Catering",
-    pay: 35,
-    payText: "$35/hr · Cash at end of night",
-    dateNeeded: "Tonight",
-    age: "12m ago",
-    desc: "Need 2 polite, reliable waiters for a Bar Mitzvah hall tonight. 5:30 PM - 11:30 PM. Immediate cash payment upon finish. White shirt & black pants required.",
-    phone: "(718) 555-0144",
-    whatsapp: "17185550144"
-  },
-  {
-    id: 102,
-    icon: "🚐",
-    title: "Urgent Airport Ride: Lakewood to JFK",
-    company: "Private Family",
-    location: "Lakewood, NJ",
-    country: "United States",
-    category: "Driving",
-    pay: 35,
-    payText: "$140 flat + tolls",
-    dateNeeded: "Today",
-    age: "28m ago",
-    desc: "Need an immediate driver with a clean minivan or SUV for 4 passengers + luggage to JFK airport today at 3:30 PM. Flight leaves at 8:00 PM.",
-    phone: "(732) 555-0199",
-    whatsapp: "17325550199"
-  },
-  {
-    id: 103,
-    icon: "⚡",
-    title: "Simcha Hall Table & Stage Setup Helper",
-    company: "Ateres Simcha Hall",
-    location: "Monsey, NY",
-    country: "United States",
-    category: "Simcha & Catering",
-    pay: 25,
-    payText: "$25/hr · Today 4:00 PM",
-    dateNeeded: "Today",
-    age: "45m ago",
-    desc: "Help dress tables, arrange chairs, and setup stage layout for an event this evening. Approx 4-5 hours of work starting 4:00 PM. Straightforward work.",
-    phone: "(845) 555-0172",
-    whatsapp: "18455550172"
-  },
-  {
-    id: 104,
-    icon: "📦",
-    title: "Warehouse Container Unloading Rush",
-    company: "Commercial Importer",
-    location: "Crown Heights, Brooklyn",
-    country: "United States",
-    category: "Warehouse",
-    pay: 28,
-    payText: "$28/hr · Cash daily",
-    dateNeeded: "Immediate",
-    age: "1h ago",
-    desc: "Looking for 3 strong helpers to unload incoming containers of housewares today starting at 1:00 PM. Friendly crew and same-day cash payment.",
-    phone: "(718) 555-0188",
-    whatsapp: "17185550188"
-  },
-  {
-    id: 105,
-    icon: "🥖",
-    title: "Friday Challah Bakery Packaging Helper",
-    company: "Williamsburg Bakery",
-    location: "Williamsburg, Brooklyn",
-    country: "United States",
-    category: "Food Service",
-    pay: 26,
-    payText: "$26/hr · Cash Friday",
-    dateNeeded: "Tomorrow",
-    age: "2h ago",
-    desc: "Help bag, label, and box fresh challahs and kokosh cakes for Friday distribution. Shifts from 6:00 AM to 12:00 PM tomorrow.",
-    phone: "(718) 555-0131",
-    whatsapp: "17185550131"
-  },
-  {
-    id: 106,
-    icon: "🚚",
-    title: "Moving Helper — 3 Hours Local Transport",
-    company: "Residential Moving",
-    location: "Passaic, NJ",
-    country: "United States",
-    category: "Moving & Labor",
-    pay: 30,
-    payText: "$30/hr cash",
-    dateNeeded: "Immediate",
-    age: "3h ago",
-    desc: "Need 1 helper to assist driver with loading and unloading 8 furniture pieces in Passaic. Expected duration: 2.5 to 3 hours. Cash upon completion.",
-    phone: "(973) 555-0167",
-    whatsapp: "19735550167"
-  },
-  {
-    id: 107,
-    icon: "🔊",
-    title: "Simcha Sound & Mic Setup Assistant",
-    company: "Audio Productions",
-    location: "Five Towns, NY",
-    country: "United States",
-    category: "Simcha & Catering",
-    pay: 30,
-    payText: "$150 flat · Tonight 6:00 PM",
-    dateNeeded: "Tonight",
-    age: "3h ago",
-    desc: "Assist sound engineer with carrying speaker stands, running cables, and testing wireless mics for an engagement party in Lawrence, NY.",
-    phone: "(516) 555-0155",
-    whatsapp: "15165550155"
-  },
-  {
-    id: 108,
-    icon: "📦",
-    title: "Emergency Order Fulfillment & Packing",
-    company: "Judaica Distribution",
-    location: "Lakewood, NJ",
-    country: "United States",
-    category: "Warehouse",
-    pay: 25,
-    payText: "$25/hr · Today 2:00 PM",
-    dateNeeded: "Today",
-    age: "4h ago",
-    desc: "Rush orders need to be packed and taped into USPS/UPS boxes today before 5:00 PM carrier pickup. Easy work in air-conditioned office warehouse.",
-    phone: "(732) 555-0122",
-    whatsapp: "17325550122"
-  }
-];
+const INITIAL_SAME_DAY_GIGS: SameDayGig[] = [];
 
 export default function SameDayGigsPage() {
   const { user } = useAuth();
   const [gigs, setGigs] = useState<SameDayGig[]>(INITIAL_SAME_DAY_GIGS);
-  const [savedGigs, setSavedGigs] = useState<number[]>([]);
+  const [savedGigs, setSavedGigs] = useState<(number | string)[]>([]);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -194,20 +67,99 @@ export default function SameDayGigsPage() {
     setTimeout(() => setToastVisible(false), 2400);
   };
 
-  // Load saved gigs
+  // Load saved gigs and synchronize with API & Firebase Firestore
   useEffect(() => {
+    let unsub: (() => void) | null = null;
+
     try {
       const saved = localStorage.getItem("yidmatch_saved_sameday");
       if (saved) setSavedGigs(JSON.parse(saved));
-      const localGigs = localStorage.getItem("yidmatch_custom_sameday");
-      if (localGigs) {
-        const parsed = JSON.parse(localGigs);
-        setGigs([...parsed, ...INITIAL_SAME_DAY_GIGS]);
-      }
     } catch (_) {}
+
+    // 1. Fetch from server API so any user on any browser sees the gigs
+    const loadGigsFromApi = async () => {
+      try {
+        const res = await fetch("/api/daily-jobs");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data?.dailyJobs) && data.dailyJobs.length > 0) {
+            const mapped: SameDayGig[] = data.dailyJobs.map((dj: any, idx: number) => ({
+              id: dj.id || "dj-" + Date.now() + "-" + idx,
+              icon: "⚡",
+              title: dj.title,
+              company: dj.contactName || dj.company || "Community Employer",
+              location: dj.location || dj.neighborhood || "Lakewood, NJ",
+              country: "United States",
+              category: dj.category || "Urgent Same-Day",
+              pay: Number(dj.payAmount) || 25,
+              payText: dj.payType ? `$${dj.payAmount} · ${dj.payType}` : `$${dj.payAmount || 25}/hr`,
+              dateNeeded: (dj.dateNeeded as any) || "Today",
+              age: dj.createdAt ? "Recently" : "Just now",
+              desc: dj.description || dj.desc || "",
+              phone: dj.contactPhone || "",
+              whatsapp: dj.contactWhatsapp || (dj.contactPhone ? dj.contactPhone.replace(/\D/g, "") : "")
+            }));
+            setGigs(prev => {
+              const seen = new Set(prev.map(p => `${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
+              const toAdd = mapped.filter(m => !seen.has(`${m.title.trim().toLowerCase()}|${m.company.trim().toLowerCase()}`));
+              return [...prev, ...toAdd];
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load gigs from /api/daily-jobs", e);
+      }
+    };
+
+    loadGigsFromApi();
+
+    // 2. Real-time Firebase Firestore synchronization
+    if (db) {
+      try {
+        const q = query(collection(db, "same_day_gigs"), orderBy("createdAt", "desc"));
+        unsub = onSnapshot(
+          q,
+          (snap) => {
+            if (!snap.empty) {
+              const firestoreGigs: SameDayGig[] = snap.docs.map((doc) => {
+                const d = doc.data();
+                return {
+                  id: doc.id,
+                  icon: d.icon || "⚡",
+                  title: d.title || "Urgent Gig",
+                  company: d.company || "Community Employer",
+                  location: d.location || "Lakewood, NJ",
+                  country: d.country || "United States",
+                  category: d.category || "Urgent Same-Day",
+                  pay: Number(d.pay) || 25,
+                  payText: d.payText || `$${d.pay || 25}/hr`,
+                  dateNeeded: d.dateNeeded || "Today",
+                  age: d.age || "Recently",
+                  desc: d.desc || "",
+                  phone: d.phone || "",
+                  whatsapp: d.whatsapp || ""
+                };
+              });
+              setGigs(prev => {
+                const seen = new Set(firestoreGigs.map(p => `${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
+                const remaining = prev.filter(p => !seen.has(`${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
+                return [...firestoreGigs, ...remaining];
+              });
+            }
+          },
+          (err) => {
+            console.warn("Firestore same_day_gigs onSnapshot error:", err.message);
+          }
+        );
+      } catch (_) {}
+    }
+
+    return () => {
+      if (unsub) unsub();
+    };
   }, []);
 
-  const handleToggleSaveGig = (id: number, title: string) => {
+  const handleToggleSaveGig = (id: number | string, title: string) => {
     setSavedGigs(prev => {
       const exists = prev.includes(id);
       const updated = exists ? prev.filter(gId => gId !== id) : [...prev, id];
@@ -227,7 +179,7 @@ export default function SameDayGigsPage() {
     }
     const payNum = Number(newPay.replace(/[^0-9.]/g, "")) || 25;
     const created: SameDayGig = {
-      id: Date.now(),
+      id: "gig-" + Date.now(),
       icon: "⚡",
       title: newTitle.trim(),
       company: newCompany.trim() || "Community Employer",
@@ -243,11 +195,40 @@ export default function SameDayGigsPage() {
       whatsapp: newPhone.replace(/\D/g, "")
     };
 
-    const updated = [created, ...gigs];
-    setGigs(updated);
-    try {
-      localStorage.setItem("yidmatch_custom_sameday", JSON.stringify([created]));
-    } catch (_) {}
+    setGigs(prev => [created, ...prev]);
+
+    // 1. Persist to API so it is saved across all browsers and devices
+    fetch("/api/daily-jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: created.title,
+        category: created.category,
+        location: created.location,
+        neighborhood: created.location,
+        dateNeeded: created.dateNeeded,
+        payAmount: created.pay,
+        payType: "Same-Day Pay",
+        urgencyLevel: "URGENT",
+        contactPhone: created.phone,
+        contactWhatsapp: created.whatsapp,
+        contactName: created.company,
+        description: created.desc,
+        employerId: user?.uid || "emp-" + Date.now(),
+      }),
+    }).catch(err => console.warn("API save warning:", err));
+
+    // 2. Persist to Firebase Firestore
+    if (db) {
+      addDoc(collection(db, "same_day_gigs"), {
+        ...created,
+        createdAt: new Date().toISOString(),
+        timestamp: serverTimestamp(),
+        employerId: user?.uid || "emp-" + Date.now(),
+        status: "ACTIVE"
+      }).catch(err => console.warn("Firestore gig save warning:", err.message));
+    }
+
     setPostModalOpen(false);
     setNewTitle("");
     setNewCompany("");
@@ -257,13 +238,24 @@ export default function SameDayGigsPage() {
     showToast("✓ Urgent same-day gig posted live!");
   };
 
+  // Unique de-duplicated Gigs list
+  const uniqueGigsList = useMemo(() => {
+    const seen = new Set<string>();
+    return gigs.filter(g => {
+      const key = `${g.title.trim().toLowerCase()}|${g.company.trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [gigs]);
+
   // Filtered Gigs
   const filteredGigs = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     const loc = locationFilter.toLowerCase().trim();
     const minPay = Number(payFilter);
 
-    return gigs.filter(g => {
+    return uniqueGigsList.filter(g => {
       const matchesQ =
         !q ||
         (g.title + " " + g.company + " " + g.category + " " + g.desc).toLowerCase().includes(q);
@@ -275,7 +267,7 @@ export default function SameDayGigsPage() {
 
       return matchesQ && matchesLoc && matchesPay && matchesDate;
     });
-  }, [gigs, searchQuery, locationFilter, payFilter, dateFilter]);
+  }, [uniqueGigsList, searchQuery, locationFilter, payFilter, dateFilter]);
 
   return (
     <div className="layout">
@@ -283,6 +275,16 @@ export default function SameDayGigsPage() {
       <div className={`toast ${toastVisible ? "show" : ""}`} role="status">
         {toastMessage}
       </div>
+
+      {/* Floating Back to Start Button */}
+      <a
+        href="/"
+        className="back-to-start show"
+        id="backToStartSameDay"
+        style={{ textDecoration: "none" }}
+      >
+        ← Choose Job Seeking / Hiring
+      </a>
 
       {/* Floating Contact Owner button */}
       <button
@@ -293,12 +295,13 @@ export default function SameDayGigsPage() {
         aria-label="Contact Owner"
       >
         <span className="badge-dot" />
-        <span>💬 Contact Owner</span>
+        <span className="contact-text-full">💬 Contact Owner</span>
+        <span className="contact-text-short">💬 Contact</span>
       </button>
 
       {/* TOPBAR */}
       <header className="topbar">
-        <div className="shell nav">
+        <div className="shell nav" style={{ justifyContent: "space-between" }}>
           <a className="brand" href="/" aria-label="YidMatch Home">
             <Image
               src="/logo.png"
@@ -310,71 +313,30 @@ export default function SameDayGigsPage() {
             />
           </a>
 
-          <div className="nav-links">
-            <a className="navlink" href="/?view=jobs#jobs">
+          <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <a className="navlink" href="/?view=jobs#jobs" style={{ fontWeight: 700 }}>
               🏢 All Community Jobs
             </a>
-            <a className="navlink active" href="/same-day-gigs">
-              ⚡ Same-Day Gigs
-            </a>
-            <button
-              type="button"
-              className="btn btn-light"
-              onClick={() => setContactModalOpen(true)}
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            <span
+              className="bsd-badge"
+              style={{
+                fontSize: "12px",
+                fontWeight: 800,
+                color: "#1e3a5f",
+                background: "#f1f5f9",
+                padding: "3px 8px",
+                borderRadius: "6px",
+                border: "1px solid #cbd5e1"
+              }}
             >
-              <span>💬</span> Contact Us
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setPostModalOpen(true)}
-              style={{ fontWeight: 800, background: "#059669" }}
-            >
-              + Post a Same-Day Gig ($25)
-            </button>
+              בס״ד
+            </span>
           </div>
         </div>
       </header>
 
       {/* MAIN CONTENT - NO HERO SECTION */}
       <main className="shell" style={{ paddingTop: "28px", paddingBottom: "70px" }}>
-        {/* TWO DEDICATED PAGES SWITCHER */}
-        <div style={{ margin: "0 0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", borderBottom: "1.5px solid #e2e8f0", paddingBottom: "16px" }}>
-          <div className="view-switch-banner" id="viewSwitchBanner">
-            <a
-              href="/?view=jobs#jobs"
-              className="view-switch-btn"
-              id="switchAllJobsBtn"
-              title="Navigate to All Community Jobs"
-            >
-              <span>🏢 All Community Jobs</span>
-            </a>
-            <span
-              className="view-switch-btn active sameday"
-              id="switchSameDayBtn"
-            >
-              <span>⚡ Same-Day Gigs</span>
-              <span className="view-switch-badge" style={{ background: "#059669", color: "#fff" }}>
-                Active Page
-              </span>
-            </span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "13.5px", color: "#475569", fontWeight: 700 }}>
-              Current Page: <strong style={{ color: "#059669" }}>⚡ Dedicated Same-Day Gigs Board</strong>
-            </span>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setPostModalOpen(true)}
-              style={{ padding: "8px 16px", fontSize: "13px", fontWeight: 800, background: "#059669" }}
-            >
-              + Post a Gig ($25)
-            </button>
-          </div>
-        </div>
 
         {/* SEARCH BAR */}
         <div className="dashboard-search">
@@ -509,20 +471,15 @@ export default function SameDayGigsPage() {
             {filteredGigs.length === 0 ? (
               <div className="empty-state">
                 <span style={{ fontSize: "36px" }}>⚡</span>
-                <h3>No same-day gigs found matching your filters</h3>
-                <p>Try clearing your filters or search term to see all available gigs.</p>
+                <h3>No jobs found</h3>
+                <p>New same-day gigs and urgent tasks will appear here once employers post them.</p>
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setLocationFilter("");
-                    setPayFilter("0");
-                    setDateFilter("All");
-                  }}
+                  onClick={() => setPostModalOpen(true)}
                   style={{ background: "#059669" }}
                 >
-                  Show All Gigs
+                  + Post the First Gig ($25)
                 </button>
               </div>
             ) : (

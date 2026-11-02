@@ -3,9 +3,11 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
+import { db } from "@/lib/firebase/client";
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
 
 interface JobItem {
-  id: number;
+  id: number | string;
   icon: string;
   title: string;
   company: string;
@@ -19,232 +21,7 @@ interface JobItem {
   desc: string;
 }
 
-const INITIAL_JOBS: JobItem[] = [
-  {
-    id: 1,
-    icon: "❄️",
-    title: "HVAC Installer / Technician",
-    company: "Established Contractor",
-    location: "Lakewood, NJ",
-    country: "United States",
-    category: "HVAC",
-    pay: 28,
-    payText: "$28–$40/hr",
-    type: "Full-time",
-    age: "1h ago",
-    desc: "Residential and light commercial HVAC work. Mini-split experience is a plus."
-  },
-  {
-    id: 2,
-    icon: "🧾",
-    title: "Bookkeeper / Accounts Payable",
-    company: "Growing Business Office",
-    location: "Monsey, NY",
-    country: "United States",
-    category: "Accounting",
-    pay: 25,
-    payText: "$25–$32/hr",
-    type: "Full-time",
-    age: "2h ago",
-    desc: "Handle invoices, vendor payments, QuickBooks entries and reconciliations."
-  },
-  {
-    id: 3,
-    icon: "📈",
-    title: "Sales Representative",
-    company: "Home Services Company",
-    location: "Brooklyn, NY",
-    country: "United States",
-    category: "Sales",
-    pay: 30,
-    payText: "$30/hr + commission",
-    type: "Full-time",
-    age: "3h ago",
-    desc: "Speak with incoming leads, follow up with customers and close sales."
-  },
-  {
-    id: 4,
-    icon: "🏢",
-    title: "Property Management Coordinator",
-    company: "Property Management Office",
-    location: "London",
-    country: "United Kingdom",
-    category: "Real Estate",
-    pay: 26,
-    payText: "£20–£26/hr",
-    type: "Full-time",
-    age: "4h ago",
-    desc: "Coordinate maintenance requests, tenants, vendors and scheduling."
-  },
-  {
-    id: 5,
-    icon: "🎧",
-    title: "Customer Service / Dispatcher",
-    company: "Service Company",
-    location: "Manchester",
-    country: "United Kingdom",
-    category: "Customer Service",
-    pay: 22,
-    payText: "£15–£20/hr",
-    type: "Full-time",
-    age: "5h ago",
-    desc: "Answer calls, schedule jobs and keep customers updated."
-  },
-  {
-    id: 6,
-    icon: "📦",
-    title: "Warehouse Supervisor",
-    company: "Distribution Company",
-    location: "Brooklyn, NY",
-    country: "United States",
-    category: "Warehouse",
-    pay: 30,
-    payText: "$30–$38/hr",
-    type: "Full-time",
-    age: "6h ago",
-    desc: "Run daily warehouse workflow, inventory and shipping."
-  },
-  {
-    id: 7,
-    icon: "🎨",
-    title: "Graphic Designer",
-    company: "Consumer Brand",
-    location: "Jerusalem",
-    country: "Israel",
-    category: "Design",
-    pay: 24,
-    payText: "₪80–₪110/hr",
-    type: "Full-time",
-    age: "7h ago",
-    desc: "Create ads, social graphics and marketing materials."
-  },
-  {
-    id: 8,
-    icon: "🚐",
-    title: "Route Driver",
-    company: "Local Distribution Business",
-    location: "Boro Park, Brooklyn",
-    country: "United States",
-    category: "Driving",
-    pay: 25,
-    payText: "$25–$30/hr",
-    type: "Full-time",
-    age: "8h ago",
-    desc: "Local scheduled route driving with regular stops."
-  },
-  {
-    id: 9,
-    icon: "💻",
-    title: "Junior IT Support",
-    company: "Business Office",
-    location: "Beit Shemesh",
-    country: "Israel",
-    category: "IT",
-    pay: 25,
-    payText: "₪75–₪100/hr",
-    type: "Full-time",
-    age: "10h ago",
-    desc: "Help staff with computers, printers, accounts and basic networking."
-  },
-  {
-    id: 10,
-    icon: "📚",
-    title: "School Office Administrator",
-    company: "Community School",
-    location: "Toronto",
-    country: "Canada",
-    category: "Education",
-    pay: 23,
-    payText: "C$23–C$29/hr",
-    type: "Full-time",
-    age: "1d ago",
-    desc: "Handle schedules, parent calls, records and daily office tasks."
-  },
-  {
-    id: 11,
-    icon: "🔧",
-    title: "Plumber Helper",
-    company: "Plumbing Company",
-    location: "Antwerp",
-    country: "Belgium",
-    category: "Plumbing",
-    pay: 22,
-    payText: "€18–€24/hr",
-    type: "Full-time",
-    age: "1d ago",
-    desc: "Assist technicians on service calls and installations. Training available."
-  },
-  {
-    id: 12,
-    icon: "🍽️",
-    title: "Kitchen Manager",
-    company: "Kosher Food Business",
-    location: "Lakewood, NJ",
-    country: "United States",
-    category: "Food Service",
-    pay: 27,
-    payText: "$27–$35/hr",
-    type: "Full-time",
-    age: "1d ago",
-    desc: "Manage kitchen workflow, staff, ordering and production."
-  },
-  {
-    id: 13,
-    icon: "⚡",
-    title: "2 Waiters Needed for Bar Mitzvah Tonight",
-    company: "Heimish Catering Hall",
-    location: "Boro Park, Brooklyn",
-    country: "United States",
-    category: "Food Service",
-    pay: 35,
-    payText: "$35/hr · Cash at end of night",
-    type: "Same-Day / Short-term",
-    age: "15m ago",
-    desc: "Need 2 polite, reliable waiters for a Bar Mitzvah hall tonight. 5:30 PM - 11:30 PM. Instant cash payment at conclusion."
-  },
-  {
-    id: 14,
-    icon: "🚐",
-    title: "Urgent Airport Ride: Lakewood to JFK",
-    company: "Private Family",
-    location: "Lakewood, NJ",
-    country: "United States",
-    category: "Driving",
-    pay: 35,
-    payText: "$140 flat + tolls",
-    type: "Same-Day / Short-term",
-    age: "35m ago",
-    desc: "Need an immediate driver with a clean minivan or SUV for 4 passengers + luggage to JFK airport today at 3:30 PM."
-  },
-  {
-    id: 15,
-    icon: "⚡",
-    title: "Simcha Hall Table & Stage Setup Helper",
-    company: "Ateres Simcha Hall",
-    location: "Monsey, NY",
-    country: "United States",
-    category: "Other",
-    pay: 25,
-    payText: "$25/hr · Today 4:00 PM",
-    type: "Same-Day / Short-term",
-    age: "1h ago",
-    desc: "Help dress tables, arrange chairs, and setup stage layout for an event this evening. Approx 4-5 hours of work."
-  },
-  {
-    id: 16,
-    icon: "📦",
-    title: "Warehouse Container Unloading Rush",
-    company: "Commercial Importer",
-    location: "Crown Heights, Brooklyn",
-    country: "United States",
-    category: "Warehouse",
-    pay: 28,
-    payText: "$28/hr · Cash daily",
-    type: "Same-Day / Short-term",
-    age: "2h ago",
-    desc: "Looking for 3 strong helpers to unload incoming containers of housewares today starting at 1:00 PM. Same-day cash pay."
-  }
-];
+const INITIAL_JOBS: JobItem[] = [];
 
 function getJobContactInfo(job: { title: string; company: string; country: string; location: string }) {
   const companySlug = job.company.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -606,21 +383,6 @@ export default function HomePage() {
     }
   };
 
-  const handleDemoLogin = async (role: "SEEKER" | "EMPLOYER") => {
-    setAuthError("");
-    setAuthLoading(true);
-    const demoEmail = role === "EMPLOYER" ? "employer@yidmatch.com" : "seeker@yidmatch.com";
-    const res = await login(demoEmail, "demo123");
-    setAuthLoading(false);
-    if (res.success) {
-      showToast(`Logged in as Demo ${role === "EMPLOYER" ? "Employer" : "Job Seeker"}!`);
-      setAuthModalOpen(false);
-      setEntryGateOpen(false);
-      setShowBackToStart(true);
-    } else {
-      setAuthError(res.error || "Demo login error.");
-    }
-  };
 
   const handleSignOut = async () => {
     await logout();
@@ -804,7 +566,7 @@ export default function HomePage() {
 
   // Auth Context (declared at top of HomePage)
   // Saved Jobs State
-  const [savedJobs, setSavedJobs] = useState<number[]>([]);
+  const [savedJobs, setSavedJobs] = useState<(number | string)[]>([]);
 
   // Hybrid Job Application Modal State
   const [appliedJob, setAppliedJob] = useState<JobItem | null>(null);
@@ -823,6 +585,88 @@ export default function HomePage() {
 
   // Jobs Feed State
   const [jobsList, setJobsList] = useState<JobItem[]>(INITIAL_JOBS);
+
+  // Real-time synchronization with Firebase Firestore & API
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+
+    const loadFromApi = async () => {
+      try {
+        const res = await fetch("/api/jobs");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data?.jobs) && data.jobs.length > 0) {
+            const mapped: JobItem[] = data.jobs.map((j: any, idx: number) => ({
+              id: j.id || "job-" + Date.now() + "-" + idx,
+              icon: j.icon || (j.jobType?.includes("Same-Day") ? "⚡" : "💼"),
+              title: j.title,
+              company: j.company,
+              location: j.location,
+              country: j.location?.includes("Israel") ? "Israel" : j.location?.includes("UK") || j.location?.includes("London") ? "United Kingdom" : "United States",
+              category: j.category || "General",
+              pay: Number(j.salaryMin) || Number(j.pay) || 25,
+              payText: j.salaryDisplay || j.payText || `$${j.salaryMin || 25}/hr`,
+              type: j.jobType || j.type || "Full-time",
+              age: j.createdAt ? "Recently" : "Just now",
+              desc: j.description || j.desc || ""
+            }));
+            setJobsList(prev => {
+              const seen = new Set(prev.map(p => `${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
+              const toAdd = mapped.filter(m => !seen.has(`${m.title.trim().toLowerCase()}|${m.company.trim().toLowerCase()}`));
+              return [...prev, ...toAdd];
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load jobs from /api/jobs", e);
+      }
+    };
+
+    // Load from server API immediately so all visitors see jobs across devices
+    loadFromApi();
+
+    if (db) {
+      try {
+        const q = query(collection(db, "jobs"), orderBy("createdAt", "desc"));
+        unsub = onSnapshot(
+          q,
+          (snap) => {
+            if (!snap.empty) {
+              const firestoreJobs: JobItem[] = snap.docs.map((doc) => {
+                const d = doc.data();
+                return {
+                  id: doc.id,
+                  icon: d.icon || (d.type?.includes("Same-Day") ? "⚡" : "💼"),
+                  title: d.title || "Untitled Position",
+                  company: d.company || "Community Business",
+                  location: d.location || "Lakewood, NJ",
+                  country: d.country || "United States",
+                  category: d.category || "General",
+                  pay: Number(d.pay) || 25,
+                  payText: d.payText || `$${d.pay || 25}/hr`,
+                  type: d.type || "Full-time",
+                  age: d.age || "Recently",
+                  desc: d.desc || ""
+                };
+              });
+              setJobsList(prev => {
+                const seen = new Set(firestoreJobs.map(p => `${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
+                const remaining = prev.filter(p => !seen.has(`${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
+                return [...firestoreJobs, ...remaining];
+              });
+            }
+          },
+          (err) => {
+            console.warn("Firestore onSnapshot error:", err.message);
+          }
+        );
+      } catch (_) {}
+    }
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
 
   // User Profile Dropdown & Resume Builder State
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -1241,7 +1085,7 @@ export default function HomePage() {
     const finalSchedule = isSameDayGig ? "Same-Day / Short-term" : empSchedule;
 
     const newJob: JobItem = {
-      id: Date.now(),
+      id: "job-" + Date.now(),
       icon: isSameDayGig ? "⚡" : "💼",
       title: empTitle,
       company: empCompany,
@@ -1256,6 +1100,40 @@ export default function HomePage() {
     };
 
     setJobsList(prev => [newJob, ...prev]);
+
+    // 1. Persist to API so it is saved in server database and loaded across all devices
+    fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: newJob.title,
+        company: newJob.company,
+        location: newJob.location,
+        neighborhood: empLocation.trim(),
+        jobType: newJob.type,
+        salaryMin: newJob.pay,
+        salaryDisplay: newJob.payText,
+        description: newJob.desc,
+        employerId: user?.uid || "emp-" + Date.now(),
+        employerEmail: empEmail.trim() || user?.email || "",
+        contactEmail: empEmail.trim() || user?.email || "",
+        status: "ACTIVE",
+        paymentStatus: "PAID",
+      }),
+    }).catch(err => console.warn("API save warning:", err));
+
+    // 2. Persist to Firebase Firestore
+    if (db) {
+      addDoc(collection(db, "jobs"), {
+        ...newJob,
+        createdAt: new Date().toISOString(),
+        timestamp: serverTimestamp(),
+        employerEmail: empEmail.trim() || user?.email || "",
+        employerPhone: empPhone.trim() || "",
+        contactName: empContactName.trim() || "",
+        status: "ACTIVE"
+      }).catch(err => console.warn("Firestore save warning:", err.message));
+    }
 
     // Dispatch matching SMS job alerts immediately
     fetch("/api/alerts/notify-match", {
@@ -1913,6 +1791,11 @@ export default function HomePage() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="employerTitle"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).id === "employerGate") {
+            handleBackToStart();
+          }
+        }}
       >
         <div className="employer-wrap" style={{ maxWidth: "860px" }}>
           <div className="employer-top">
@@ -1920,10 +1803,7 @@ export default function HomePage() {
               type="button"
               className="btn btn-light"
               id="employerBack"
-              onClick={() => {
-                setEmployerGateOpen(false);
-                setEntryGateOpen(true);
-              }}
+              onClick={handleBackToStart}
             >
               ← Back to Choice
             </button>
@@ -1932,7 +1812,7 @@ export default function HomePage() {
               <button
                 type="button"
                 className="btn btn-light"
-                onClick={() => setEmployerGateOpen(false)}
+                onClick={handleBackToStart}
                 style={{ padding: "6px 12px", fontSize: "13px" }}
               >
                 ✕ Close
@@ -2737,7 +2617,8 @@ export default function HomePage() {
         aria-label="Contact Owner"
       >
         <span className="badge-dot" />
-        <span>💬 Contact Owner</span>
+        <span className="contact-text-full">💬 Contact Owner</span>
+        <span className="contact-text-short">💬 Contact</span>
       </button>
 
       {/* Topbar */}
@@ -2778,10 +2659,9 @@ export default function HomePage() {
           <div className="nav-actions">
             <button
               type="button"
-              className="btn btn-light"
+              className="btn btn-light topbar-contact-btn"
               id="topbarContactBtn"
               onClick={() => setContactModalOpen(true)}
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
               <span>💬</span> Contact Us
             </button>
@@ -3067,40 +2947,7 @@ export default function HomePage() {
                   Search Jobs
                 </button>
               </div>
-              {/* TWO BUTTONS: ALL JOBS vs SAME-DAY GIGS */}
-              <div style={{ marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
-                <div className="view-switch-banner" id="viewSwitchBanner">
-                  <a
-                    href="/?view=jobs#jobs"
-                    className="view-switch-btn active all"
-                    id="switchAllJobsBtn"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setTypeFilter("");
-                      setQuickCat("");
-                      setCurrentPage(1);
-                      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                  >
-                    <span>🏢 All Jobs</span>
-                    <span className="view-switch-badge">{uniqueJobsList.length}</span>
-                  </a>
-                  <a
-                    href="/same-day-gigs"
-                    className="view-switch-btn"
-                    id="switchSameDayBtn"
-                  >
-                    <span>⚡ Same-Day Gigs</span>
-                    <span className="view-switch-badge" style={{ background: "#f59e0b", color: "#0f172a" }}>
-                      New Page →
-                    </span>
-                  </a>
-                </div>
 
-                <div style={{ fontSize: "13px", color: "#64748b", fontWeight: 700 }}>
-                  <span>Page: <strong style={{ color: "#1e72c8" }}>🏢 All Community Job Listings</strong></span>
-                </div>
-              </div>
             </div>
 
             <div className="jobs-layout">
@@ -3228,8 +3075,20 @@ export default function HomePage() {
                       </article>
                     ))
                   ) : (
-                    <div className="panel" style={{ padding: "28px", textAlign: "center", color: "#6f8087" }}>
-                      No matching jobs. Try a broader job type or location.
+                    <div className="panel" style={{ padding: "48px 24px", textAlign: "center", color: "#5d7486" }}>
+                      <span style={{ fontSize: "40px", display: "block", marginBottom: "12px" }}>🏢</span>
+                      <h3 style={{ fontSize: "22px", fontWeight: 850, color: "#0c3365", margin: "0 0 6px" }}>No jobs found</h3>
+                      <p style={{ margin: "0 0 16px", color: "#708999", fontSize: "14.5px" }}>
+                        New community job listings will appear here once employers post them.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleChooseHiring}
+                        style={{ fontSize: "14px", padding: "10px 20px" }}
+                      >
+                        + Post the First Job ($25)
+                      </button>
                     </div>
                   )}
                 </div>
@@ -3804,7 +3663,7 @@ export default function HomePage() {
             if (e.target === e.currentTarget) setAuthModalOpen(false);
           }}
         >
-          <div className="auth-card">
+          <div className={`auth-card ${authTab === "signup" ? "auth-card-signup" : ""}`}>
             <button
               type="button"
               className="auth-close"
@@ -3818,8 +3677,8 @@ export default function HomePage() {
               <Image
                 src="/logo.png"
                 alt="YidMatch"
-                width={160}
-                height={50}
+                width={130}
+                height={40}
                 className="auth-brand-logo"
               />
               <h2>
@@ -3827,11 +3686,6 @@ export default function HomePage() {
                 {authTab === "signup" && "Create your account"}
                 {authTab === "forgot" && "Reset your password"}
               </h2>
-              <p>
-                {authTab === "login" && "Access your applications, listings, and saved searches."}
-                {authTab === "signup" && "Join our community platform for jobs and hiring."}
-                {authTab === "forgot" && "Enter your email to receive a password reset link."}
-              </p>
             </div>
 
             {authTab !== "forgot" && (
@@ -3878,95 +3732,139 @@ export default function HomePage() {
             <form onSubmit={handleAuthSubmit} className="auth-form">
               {authTab === "signup" && (
                 <>
-                  <label>I want to:</label>
-                  <div className="auth-role-toggle">
-                    <button
-                      type="button"
-                      className={`auth-role-btn ${authRole === "SEEKER" ? "selected" : ""}`}
-                      onClick={() => setAuthRole("SEEKER")}
-                    >
-                      🔎 Find a Job
-                    </button>
-                    <button
-                      type="button"
-                      className={`auth-role-btn ${authRole === "EMPLOYER" ? "selected" : ""}`}
-                      onClick={() => setAuthRole("EMPLOYER")}
-                    >
-                      💼 Hire Someone
-                    </button>
+                  <div className="auth-role-row">
+                    <span className="auth-role-label">I want to:</span>
+                    <div className="auth-role-toggle">
+                      <button
+                        type="button"
+                        className={`auth-role-btn ${authRole === "SEEKER" ? "selected" : ""}`}
+                        onClick={() => setAuthRole("SEEKER")}
+                      >
+                        🔎 Find a Job
+                      </button>
+                      <button
+                        type="button"
+                        className={`auth-role-btn ${authRole === "EMPLOYER" ? "selected" : ""}`}
+                        onClick={() => setAuthRole("EMPLOYER")}
+                      >
+                        💼 Hire Someone
+                      </button>
+                    </div>
                   </div>
 
+                  <div className="auth-grid-2col">
+                    <div>
+                      <label htmlFor="authNameInput">Full Name *</label>
+                      <input
+                        id="authNameInput"
+                        type="text"
+                        placeholder="e.g. Avi Klein"
+                        value={authName}
+                        onChange={(e) => setAuthName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="authEmailInput">Email Address *</label>
+                      <input
+                        id="authEmailInput"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="authPasswordInput">Password *</label>
+                      <input
+                        id="authPasswordInput"
+                        type="password"
+                        placeholder="Min 6 characters"
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="authPhoneInput">Phone (Optional)</label>
+                      <input
+                        id="authPhoneInput"
+                        type="tel"
+                        placeholder="e.g. (718) 555-0199"
+                        value={authPhone}
+                        onChange={(e) => setAuthPhone(e.target.value)}
+                      />
+                    </div>
+
+                    {authRole === "EMPLOYER" && (
+                      <div>
+                        <label htmlFor="authCompanyInput">Company / Organization *</label>
+                        <input
+                          id="authCompanyInput"
+                          type="text"
+                          placeholder="Enter company name"
+                          value={authCompany}
+                          onChange={(e) => setAuthCompany(e.target.value)}
+                          required
+                        />
+                      </div>
+                    )}
+
+                    <div style={authRole === "SEEKER" ? { gridColumn: "span 2" } : {}}>
+                      <label htmlFor="authLocationInput">Location (Optional)</label>
+                      <input
+                        id="authLocationInput"
+                        type="text"
+                        placeholder="e.g. Lakewood, NJ"
+                        value={authLocation}
+                        onChange={(e) => setAuthLocation(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {authTab === "login" && (
+                <>
                   <div>
-                    <label htmlFor="authNameInput">Full Name *</label>
+                    <label htmlFor="authEmailInput">Email Address *</label>
                     <input
-                      id="authNameInput"
-                      type="text"
-                      placeholder="e.g. Avi Klein"
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
+                      id="authEmailInput"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
                       required
                     />
                   </div>
 
-                  {authRole === "EMPLOYER" && (
-                    <div>
-                      <label htmlFor="authCompanyInput">Company / Organization *</label>
-                      <input
-                        id="authCompanyInput"
-                        type="text"
-                        placeholder="Enter company or organization name"
-                        value={authCompany}
-                        onChange={(e) => setAuthCompany(e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
-
                   <div>
-                    <label htmlFor="authPhoneInput">Phone (Optional)</label>
+                    <label htmlFor="authPasswordInput">Password *</label>
                     <input
-                      id="authPhoneInput"
-                      type="tel"
-                      placeholder="e.g. (718) 555-0199"
-                      value={authPhone}
-                      onChange={(e) => setAuthPhone(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="authLocationInput">Location (Optional)</label>
-                    <input
-                      id="authLocationInput"
-                      type="text"
-                      placeholder="e.g. Lakewood, NJ"
-                      value={authLocation}
-                      onChange={(e) => setAuthLocation(e.target.value)}
+                      id="authPasswordInput"
+                      type="password"
+                      placeholder="••••••••"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      required
                     />
                   </div>
                 </>
               )}
 
-              <div>
-                <label htmlFor="authEmailInput">Email Address *</label>
-                <input
-                  id="authEmailInput"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              {authTab !== "forgot" && (
+              {authTab === "forgot" && (
                 <div>
-                  <label htmlFor="authPasswordInput">Password *</label>
+                  <label htmlFor="authEmailInput">Email Address *</label>
                   <input
-                    id="authPasswordInput"
-                    type="password"
-                    placeholder="••••••••"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
+                    id="authEmailInput"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
                     required
                   />
                 </div>
@@ -4013,6 +3911,22 @@ export default function HomePage() {
                       Need an account? Register
                     </button>
                   </>
+                )}
+                {authTab === "signup" && (
+                  <div style={{ width: "100%", textAlign: "center", fontSize: "12.5px", color: "#64748b" }}>
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      style={{ fontWeight: 800, color: "#1e72c8" }}
+                      onClick={() => {
+                        setAuthTab("login");
+                        setAuthError("");
+                        setAuthSuccessMsg("");
+                      }}
+                    >
+                      Sign In
+                    </button>
+                  </div>
                 )}
                 {authTab === "forgot" && (
                   <button
@@ -4062,28 +3976,6 @@ export default function HomePage() {
                   </svg>
                   Continue with Google
                 </button>
-
-                <div className="demo-accounts">
-                  <span className="demo-accounts-title">⚡ Instant Quick Sign-In (Demo)</span>
-                  <div className="demo-accounts-grid">
-                    <button
-                      type="button"
-                      className="demo-btn"
-                      id="demoSeekerBtn"
-                      onClick={() => handleDemoLogin("SEEKER")}
-                    >
-                      <span>🔎</span> Job Seeker
-                    </button>
-                    <button
-                      type="button"
-                      className="demo-btn"
-                      id="demoEmployerBtn"
-                      onClick={() => handleDemoLogin("EMPLOYER")}
-                    >
-                      <span>💼</span> Employer
-                    </button>
-                  </div>
-                </div>
               </>
             )}
           </div>

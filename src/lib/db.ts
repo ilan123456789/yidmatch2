@@ -19,70 +19,11 @@ let memoryDb: DatabaseSchema | null = null;
 
 function getSeedDatabase(): DatabaseSchema {
   return {
-    users: [
-      {
-        uid: "emp-demo",
-        email: "employer@yidmatch.com",
-        name: "Chaim Berkowitz",
-        role: "EMPLOYER",
-        companyName: "Prime Wholesale Group",
-        phone: "(732) 555-0199",
-        location: "Lakewood, NJ",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        uid: "seeker-demo",
-        email: "seeker@yidmatch.com",
-        name: "Shimon Klein",
-        role: "SEEKER",
-        phone: "(718) 555-0144",
-        location: "Boro Park, NY",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    jobs: [...SEED_JOBS],
-    dailyJobs: [...SEED_DAILY_JOBS],
-    applications: [
-      {
-        id: "app-1",
-        jobId: "job-1",
-        jobTitle: "Full-Charge Bookkeeper / Controller",
-        companyName: "Prime Wholesale Group",
-        seekerId: "seeker-demo",
-        seekerName: "Shimon Klein",
-        seekerEmail: "seeker@yidmatch.com",
-        seekerPhone: "(718) 555-0144",
-        resumeUrl: "/sample-resume.pdf",
-        resumeFileName: "Shimon_Klein_Resume.pdf",
-        coverNote: "Experienced with QuickBooks Enterprise and multi-entity wholesale distribution. Looking forward to speaking!",
-        status: "REVIEWED",
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-      },
-    ],
-    jobAlerts: [
-      {
-        id: "alert-1",
-        phone: "(732) 555-0199",
-        name: "Dovid B.",
-        categories: ["HVAC", "Plumbing", "Construction & Trades"],
-        locations: ["Lakewood", "Monsey"],
-        neighborhood: "Lakewood, NJ",
-        minPay: 25,
-        active: true,
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "alert-2",
-        phone: "(718) 555-0144",
-        name: "Mendy K.",
-        categories: ["Accounting & Finance", "Administration & Office"],
-        locations: ["Boro Park", "Brooklyn", "Flatbush"],
-        neighborhood: "Boro Park, NY",
-        minPay: 22,
-        active: true,
-        createdAt: new Date().toISOString(),
-      },
-    ],
+    users: [],
+    jobs: [],
+    dailyJobs: [],
+    applications: [],
+    jobAlerts: [],
   };
 }
 
