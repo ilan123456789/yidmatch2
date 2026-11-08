@@ -39,6 +39,7 @@ const FIRESTORE_TWILIO_CONFIG_URL = `https://firestore.googleapis.com/v1/project
 
 let cachedFirestoreConfig: TwilioRuntimeConfig | null = null;
 let cachedResolvedAccountSid: string | null = null;
+let cachedIncomingPhoneNumber: string | null = null;
 
 // Deduplication cache to avoid sending duplicate SMS for the same job to the same phone within 60s
 const recentJobAlertDispatches = new Map<string, number>();
@@ -159,6 +160,43 @@ async function resolveAccountSid(authHeader: string, configuredAccountSid?: stri
   return configuredAccountSid || "";
 }
 
+async function resolveSenderPhoneNumber(
+  authHeader: string,
+  accountSid: string,
+  configuredFromNumber?: string
+): Promise<string> {
+  if (
+    configuredFromNumber &&
+    configuredFromNumber !== "+17372508034" &&
+    configuredFromNumber.replace(/\D/g, "").length >= 10
+  ) {
+    return normalizePhoneNumber(configuredFromNumber);
+  }
+  if (cachedIncomingPhoneNumber) {
+    return cachedIncomingPhoneNumber;
+  }
+  try {
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json?PageSize=1`,
+      {
+        method: "GET",
+        headers: { Authorization: authHeader },
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const firstPhone = data?.incoming_phone_numbers?.[0]?.phone_number;
+      if (firstPhone && typeof firstPhone === "string") {
+        cachedIncomingPhoneNumber = normalizePhoneNumber(firstPhone);
+        return cachedIncomingPhoneNumber;
+      }
+    }
+  } catch (err) {
+    console.warn("[YidMatch SMS] Failed to auto-resolve Twilio sender phone number:", err);
+  }
+  return normalizePhoneNumber(configuredFromNumber || "+17372508034");
+}
+
 export async function sendSms({
   to,
   message,
@@ -225,7 +263,8 @@ export async function sendSms({
     if (messagingServiceSid) {
       params.append("MessagingServiceSid", messagingServiceSid);
     } else if (fromNumber) {
-      params.append("From", normalizePhoneNumber(fromNumber));
+      const resolvedFrom = await resolveSenderPhoneNumber(authHeader, accountSid, fromNumber);
+      params.append("From", resolvedFrom);
     }
 
     let response = await fetch(url, {
@@ -251,7 +290,8 @@ export async function sendSms({
       if (messagingServiceSid) {
         trialParams.append("MessagingServiceSid", messagingServiceSid);
       } else if (fromNumber) {
-        trialParams.append("From", normalizePhoneNumber(fromNumber));
+        const resolvedFrom = await resolveSenderPhoneNumber(authHeader, accountSid, fromNumber);
+        trialParams.append("From", resolvedFrom);
       }
 
       response = await fetch(url, {
