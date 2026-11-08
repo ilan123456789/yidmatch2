@@ -106,9 +106,21 @@ async function getTwilioConfig(): Promise<TwilioRuntimeConfig> {
       const data = await res.json();
       const f = data?.fields || {};
       const accountSid = f.accountSid?.stringValue || "";
+      const authToken = f.authToken?.stringValue || "";
       const apiKeySid = f.apiKeySid?.stringValue || "";
       const apiKeySecret = f.apiKeySecret?.stringValue || "";
       const fromNumber = f.fromNumber?.stringValue || "+17372508034";
+
+      if (accountSid && authToken) {
+        cachedFirestoreConfig = {
+          accountSid,
+          apiKeySid: accountSid,
+          apiKeySecret: authToken,
+          fromNumber,
+          messagingServiceSid: envMessagingServiceSid,
+        };
+        return cachedFirestoreConfig;
+      }
 
       if ((apiKeySid || accountSid) && apiKeySecret) {
         cachedFirestoreConfig = {
