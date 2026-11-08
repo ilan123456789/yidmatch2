@@ -124,41 +124,43 @@ export async function POST(req: Request) {
 
     await createJob(newJob);
 
-    // Automatically send Twilio SMS notifications to all matching people with interest
+    // Automatically send Twilio SMS notifications to all matching people with interest (unless caller dispatches via /api/alerts/notify-match)
     let alertsSentCount = 0;
-    try {
-      const matchingAlerts = await findMatchingAlerts({
-        title: newJob.title,
-        category: newJob.category,
-        location: newJob.location,
-        neighborhood: newJob.neighborhood,
-        description: newJob.description,
-        pay: newJob.pay,
-        salaryMin: newJob.salaryMin,
-      });
-
-      for (const alert of matchingAlerts) {
-        const smsRes = await sendJobAlertNotification({
-          to: alert.phone,
-          recipientName: alert.name,
-          job: {
-            id: newJob.id,
-            title: newJob.title,
-            company: newJob.company,
-            location: newJob.location || newJob.neighborhood,
-            category: newJob.category,
-            payText: newJob.payText,
-            salaryDisplay: newJob.salaryDisplay,
-            pay: newJob.pay || newJob.salaryMin,
-          },
-          baseUrl,
+    if (!body.skipSmsAlerts) {
+      try {
+        const matchingAlerts = await findMatchingAlerts({
+          title: newJob.title,
+          category: newJob.category,
+          location: newJob.location,
+          neighborhood: newJob.neighborhood,
+          description: newJob.description,
+          pay: newJob.pay,
+          salaryMin: newJob.salaryMin,
         });
-        if (smsRes.success) {
-          alertsSentCount++;
+
+        for (const alert of matchingAlerts) {
+          const smsRes = await sendJobAlertNotification({
+            to: alert.phone,
+            recipientName: alert.name,
+            job: {
+              id: newJob.id,
+              title: newJob.title,
+              company: newJob.company,
+              location: newJob.location || newJob.neighborhood,
+              category: newJob.category,
+              payText: newJob.payText,
+              salaryDisplay: newJob.salaryDisplay,
+              pay: newJob.pay || newJob.salaryMin,
+            },
+            baseUrl,
+          });
+          if (smsRes.success) {
+            alertsSentCount++;
+          }
         }
+      } catch (smsErr) {
+        console.warn("[POST /api/jobs] SMS alert dispatch error:", smsErr);
       }
-    } catch (smsErr) {
-      console.warn("[POST /api/jobs] SMS alert dispatch error:", smsErr);
     }
 
     // Create Stripe Checkout Session ($35.00 Regular or $45.00 Sponsored)

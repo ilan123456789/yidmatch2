@@ -1227,7 +1227,8 @@ export default function HomePage() {
         paymentAmount: effectivePrice,
         paymentStatus: "PAID",
         isSponsored: Boolean(isSponsored),
-        postedAt: formatDbDate(now)
+        postedAt: formatDbDate(now),
+        skipSmsAlerts: true
       }),
     }).catch(err => console.warn("API save warning:", err));
 
