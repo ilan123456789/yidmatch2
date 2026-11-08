@@ -1032,21 +1032,9 @@ export default function HomePage() {
       text: summaryParts.join(" · ")
     });
 
-    // If seeker is not yet logged in, prompt sign up/sign in screen (optional)
-    if (!user) {
-      setAuthRole("SEEKER");
-      if (profilePhone) setAuthPhone(profilePhone);
-      if (profileLocation) setAuthLocation(profileLocation);
-      setAuthTab("signup");
-      setAuthError("");
-      setAuthSuccessMsg("");
-      setAuthPromptedFromProfile(true);
-      setAuthModalOpen(true);
-    } else {
-      setTimeout(() => {
-        document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    }
+    setTimeout(() => {
+      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const toggleInterest = (val: string) => {
@@ -3025,17 +3013,6 @@ export default function HomePage() {
                   <span className="resume-text-full">Make a Resume</span>
                   <span className="resume-text-short">Resume</span>
                 </button>
-
-                {user.role === "EMPLOYER" ? (
-                  <button
-                    type="button"
-                    className="btn btn-primary topbar-post-job-btn"
-                    onClick={() => handleChooseHiring("jobs")}
-                  >
-                    <span className="post-job-text-full">Post a Job</span>
-                    <span className="post-job-text-short">Post Job</span>
-                  </button>
-                ) : null}
               </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -3134,15 +3111,6 @@ export default function HomePage() {
                   <span className="resume-icon">📄</span>
                   <span className="resume-text-full">Make a Resume</span>
                   <span className="resume-text-short">Resume</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-primary topbar-post-job-btn"
-                  onClick={() => handleChooseHiring("jobs")}
-                >
-                  <span className="post-job-text-full">Post a Job</span>
-                  <span className="post-job-text-short">Post Job</span>
                 </button>
               </div>
             )}
@@ -3480,18 +3448,7 @@ export default function HomePage() {
                       ) : (
                         <>
                           <span style={{ fontSize: "40px", display: "block", marginBottom: "12px" }}>🏢</span>
-                          <h3 style={{ fontSize: "22px", fontWeight: 850, color: "#0c3365", margin: "0 0 6px" }}>No jobs found</h3>
-                          <p style={{ margin: "0 0 16px", color: "#708999", fontSize: "14.5px" }}>
-                            New community job listings will appear here once employers post them.
-                          </p>
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => handleChooseHiring("jobs")}
-                            style={{ fontSize: "14px", padding: "10px 20px" }}
-                          >
-                            + Post the First Job ($35)
-                          </button>
+                          <h3 style={{ fontSize: "22px", fontWeight: 850, color: "#0c3365", margin: 0 }}>No jobs found</h3>
                         </>
                       )}
                     </div>
