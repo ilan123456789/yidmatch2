@@ -8,23 +8,33 @@ export interface UserProfile {
   companyName?: string;
   phone?: string;
   location?: string;
+  country?: string;
+  interests?: string[];
+  categories?: string[];
+  minPay?: number;
+  schedule?: string;
+  smsAlerts?: boolean;
   subscriptionStatus?: "ACTIVE" | "INACTIVE" | "CANCELED";
   subscriptionPlan?: "UNLIMITED_MONTHLY";
   subscriptionEndsAt?: string;
   createdAt: string;
 }
 
-export type JobType = "Full-Time" | "Part-Time" | "Remote" | "Hybrid" | "Contract";
+export type JobType = "Full-Time" | "Part-Time" | "Remote" | "Hybrid" | "Contract" | string;
 
-export type SalaryPeriod = "Year" | "Hour" | "Month" | "Project";
+export type SalaryPeriod = "Year" | "Hour" | "Month" | "Project" | string;
 
 export interface Job {
   id: string;
   title: string;
   company: string;
+  category?: string;
   location: string;
+  country?: string;
   neighborhood: string; // e.g. "Lakewood, NJ", "Boro Park, NY", "Monsey, NY", "Williamsburg, NY", "Flatbush, NY", "Five Towns, NY", "Crown Heights, NY", "Passaic, NJ", "Remote"
   jobType: JobType;
+  pay?: number;
+  payText?: string;
   salaryMin?: number;
   salaryMax?: number;
   salaryType: SalaryPeriod;

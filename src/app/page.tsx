@@ -331,18 +331,41 @@ export default function HomePage() {
           setAuthLoading(false);
           return;
         }
+        const effectivePhone = authPhone.trim() || profilePhone.trim();
+        const effectiveLocation = authLocation.trim() || profileLocation.trim();
         const res = await signup({
           email: authEmail,
           pass: authPassword,
           name: authName,
           role: authRole,
           companyName: authRole === "EMPLOYER" ? authCompany : undefined,
-          phone: authPhone || undefined,
-          location: authLocation || undefined,
+          phone: effectivePhone || undefined,
+          location: effectiveLocation || undefined,
+          country: profileCountry || undefined,
+          interests: profileInterests.length > 0 ? profileInterests : undefined,
+          minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
+          schedule: profileSchedule || undefined,
+          smsAlerts: profileSmsAlerts,
         });
         if (!res.success) {
           setAuthError(res.error || "Failed to create account. Please try again.");
         } else {
+          // If seeker provided a phone number during signup, register SMS job alerts for their interests
+          if (authRole === "SEEKER" && effectivePhone.replace(/\D/g, "").length >= 7 && profileSmsAlerts) {
+            fetch("/api/alerts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                phone: effectivePhone,
+                name: authName.trim(),
+                categories: profileInterests,
+                locations: effectiveLocation ? [effectiveLocation] : profileCountry ? [profileCountry] : [],
+                neighborhood: effectiveLocation,
+                minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
+                sendWelcomeSms: !profilePhone.trim(), // send welcome SMS if not already sent in step 2
+              }),
+            }).catch((err) => console.warn("Alert sync on signup:", err));
+          }
           showToast(`Welcome to YidMatch, ${authName}!`);
           setAuthModalOpen(false);
           setEntryGateOpen(false);
@@ -404,7 +427,7 @@ export default function HomePage() {
   const [alertSubmitting, setAlertSubmitting] = useState(false);
   const [alertSuccess, setAlertSuccess] = useState(false);
   const [alertError, setAlertError] = useState("");
-  const [alertIsSimulated, setAlertIsSimulated] = useState(true);
+  const [alertIsSimulated, setAlertIsSimulated] = useState(false);
 
   // Job Application Modal State
   const [applyModalOpen, setApplyModalOpen] = useState(false);
@@ -733,6 +756,9 @@ export default function HomePage() {
       if (!resumeFullName && user.name) setResumeFullName(user.name);
       if (!resumeEmail && user.email) setResumeEmail(user.email);
       if (!resumePhone && user.phone) setResumePhone(user.phone);
+      if (!profilePhone && user.phone) setProfilePhone(user.phone);
+      if (!alertPhone && user.phone) setAlertPhone(user.phone);
+      if (!alertName && user.name) setAlertName(user.name);
     }
   }, [user]);
 
@@ -967,17 +993,18 @@ export default function HomePage() {
     if (profileSchedule) setTypeFilter(profileSchedule);
     if (profileInterests.length === 1) setCategoryFilter(profileInterests[0]);
 
-    // If seeker entered a phone number and opted in for SMS alerts, subscribe them!
-    const cleanPhone = profilePhone.trim().replace(/\D/g, "");
+    // If seeker entered a phone number (or has one on their account) and opted in for SMS alerts, subscribe them!
+    const phoneToUse = profilePhone.trim() || user?.phone || "";
+    const cleanPhone = phoneToUse.replace(/\D/g, "");
     if (cleanPhone.length >= 7 && profileSmsAlerts) {
       fetch("/api/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: profilePhone,
-          name: profileStage || "Job Seeker",
+          phone: phoneToUse,
+          name: user?.name || profileStage || "Job Seeker",
           categories: profileInterests,
-          locations: [profileLocation, profileCountry].filter(Boolean),
+          locations: profileLocation ? [profileLocation] : profileCountry ? [profileCountry] : [],
           neighborhood: profileLocation,
           minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
           sendWelcomeSms: true,
@@ -1180,11 +1207,16 @@ export default function HomePage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: newJob.id,
         title: newJob.title,
         company: newJob.company,
+        category: newJob.category,
         location: newJob.location,
+        country: newJob.country,
         neighborhood: empLocation.trim(),
         jobType: newJob.type,
+        pay: newJob.pay,
+        payText: newJob.payText,
         salaryMin: newJob.pay,
         salaryDisplay: newJob.payText,
         description: newJob.desc,

@@ -19,12 +19,13 @@ export async function POST(req: Request) {
     const origin = req.headers.get("origin") || req.headers.get("host") || "http://localhost:3000";
     const baseUrl = origin.startsWith("http") ? origin : `http://${origin}`;
 
-    // Find all subscribers whose preferences match this job
+    // Find all subscribers whose preferences/interests match this job
     const matchingAlerts = await findMatchingAlerts({
       title: job.title,
       category: job.category,
       location: job.location,
       neighborhood: job.neighborhood,
+      description: job.description || job.desc,
       pay: job.pay,
       salaryMin: job.salaryMin,
     });
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
             title: job.title,
             company: job.company || "Employer on YidMatch",
             location: job.location || job.neighborhood || "Local",
+            category: job.category,
             payText: job.payText,
             salaryDisplay: job.salaryDisplay,
             pay: job.pay || job.salaryMin,
@@ -60,6 +62,7 @@ export async function POST(req: Request) {
           success: res.success,
           simulated: res.simulated,
           sid: res.sid,
+          error: res.error,
         });
       } catch (err: any) {
         console.error(`[YidMatch SMS Alert] Failed sending to ${alert.phone}:`, err);

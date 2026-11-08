@@ -43,8 +43,11 @@ export async function POST(req: Request) {
         const baseUrl = origin.startsWith("http") ? origin : `http://${origin}`;
         const matchingAlerts = await findMatchingAlerts({
           title: job.title,
+          category: job.category,
           location: job.location,
           neighborhood: job.neighborhood,
+          description: job.description,
+          pay: job.pay,
           salaryMin: job.salaryMin,
         });
 
@@ -56,8 +59,11 @@ export async function POST(req: Request) {
               id: job.id,
               title: job.title,
               company: job.company,
+              category: job.category,
               location: job.neighborhood || job.location,
+              payText: job.payText,
               salaryDisplay: job.salaryDisplay,
+              pay: job.pay || job.salaryMin,
             },
             baseUrl,
           });

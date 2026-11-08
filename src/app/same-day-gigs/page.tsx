@@ -210,11 +210,12 @@ export default function SameDayGigsPage() {
 
     setGigs(prev => [created, ...prev]);
 
-    // 1. Persist to API so it is saved across all browsers and devices
+    // 1. Persist to API so it is saved across all browsers and devices (and triggers SMS alerts)
     fetch("/api/daily-jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: created.id,
         title: created.title,
         category: created.category,
         location: created.location,
@@ -229,7 +230,16 @@ export default function SameDayGigsPage() {
         description: created.desc,
         employerId: user?.uid || "emp-" + Date.now(),
       }),
-    }).catch(err => console.warn("API save warning:", err));
+    })
+      .then(r => r.json())
+      .then(res => {
+        if (res?.alertsSentCount > 0) {
+          setTimeout(() => {
+            showToast(`⚡ Sent SMS alerts to ${res.alertsSentCount} matching candidate${res.alertsSentCount > 1 ? "s" : ""}!`);
+          }, 1200);
+        }
+      })
+      .catch(err => console.warn("API save warning:", err));
 
     // 2. Persist to Firebase Firestore (Client-side)
     if (typeof window !== "undefined") {

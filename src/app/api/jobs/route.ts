@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getJobs, getAllEmployerJobs, createJob } from "@/lib/db";
+import { getJobs, getAllEmployerJobs, createJob, findMatchingAlerts } from "@/lib/db";
 import { createJobPostingCheckoutSession } from "@/lib/stripe";
+import { sendJobAlertNotification } from "@/lib/sms/twilio";
 import { formatDbDate } from "@/lib/date-utils";
 import { Job } from "@/types";
 
@@ -53,11 +54,16 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
+      id,
       title,
       company,
+      category,
       location,
+      country,
       neighborhood,
       jobType,
+      pay,
+      payText,
       salaryMin,
       salaryMax,
       salaryType,
@@ -75,24 +81,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required job listing fields" }, { status: 400 });
     }
 
-    const jobId = "job-" + Math.random().toString(36).substring(2, 10);
+    const jobId = id || "job-" + Math.random().toString(36).substring(2, 10);
     const origin = req.headers.get("origin") || req.headers.get("host") || "http://localhost:3000";
     const baseUrl = origin.startsWith("http") ? origin : `http://${origin}`;
 
     const now = new Date();
+    const numericPay = salaryMin ? Number(salaryMin) : pay ? Number(pay) : undefined;
+    const displayPay =
+      salaryDisplay ||
+      payText ||
+      (salaryMin && salaryMax ? `$${salaryMin.toLocaleString()} - $${salaryMax.toLocaleString()}` : numericPay ? `$${numericPay}/hr` : "Competitive");
+
     const newJob: Job = {
       id: jobId,
       title,
       company,
+      category: category || "General",
       location,
-      neighborhood: neighborhood || "Lakewood, NJ",
+      country: country || "United States",
+      neighborhood: neighborhood || location || "Lakewood, NJ",
       jobType: jobType || "Full-Time",
-      salaryMin: salaryMin ? Number(salaryMin) : undefined,
+      pay: numericPay,
+      payText: displayPay,
+      salaryMin: numericPay,
       salaryMax: salaryMax ? Number(salaryMax) : undefined,
       salaryType: salaryType || "Year",
-      salaryDisplay: salaryDisplay || (salaryMin && salaryMax ? `$${salaryMin.toLocaleString()} - $${salaryMax.toLocaleString()}` : "Competitive"),
+      salaryDisplay: displayPay,
       description,
-      requirements: Array.isArray(requirements) ? requirements : (requirements ? requirements.split("\n").filter(Boolean) : []),
+      requirements: Array.isArray(requirements) ? requirements : requirements ? requirements.split("\n").filter(Boolean) : [],
       heimishPerks: Array.isArray(heimishPerks) ? heimishPerks : [],
       status: body.status || "ACTIVE",
       employerId,
@@ -108,6 +124,43 @@ export async function POST(req: Request) {
 
     await createJob(newJob);
 
+    // Automatically send Twilio SMS notifications to all matching people with interest
+    let alertsSentCount = 0;
+    try {
+      const matchingAlerts = await findMatchingAlerts({
+        title: newJob.title,
+        category: newJob.category,
+        location: newJob.location,
+        neighborhood: newJob.neighborhood,
+        description: newJob.description,
+        pay: newJob.pay,
+        salaryMin: newJob.salaryMin,
+      });
+
+      for (const alert of matchingAlerts) {
+        const smsRes = await sendJobAlertNotification({
+          to: alert.phone,
+          recipientName: alert.name,
+          job: {
+            id: newJob.id,
+            title: newJob.title,
+            company: newJob.company,
+            location: newJob.location || newJob.neighborhood,
+            category: newJob.category,
+            payText: newJob.payText,
+            salaryDisplay: newJob.salaryDisplay,
+            pay: newJob.pay || newJob.salaryMin,
+          },
+          baseUrl,
+        });
+        if (smsRes.success) {
+          alertsSentCount++;
+        }
+      }
+    } catch (smsErr) {
+      console.warn("[POST /api/jobs] SMS alert dispatch error:", smsErr);
+    }
+
     // Create Stripe Checkout Session ($35.00 Regular or $45.00 Sponsored)
     const checkout = await createJobPostingCheckoutSession({
       jobId,
@@ -120,6 +173,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       job: newJob,
+      alertsSentCount,
       checkoutUrl: checkout.url,
       sessionId: checkout.sessionId,
       isSimulated: checkout.isSimulated,

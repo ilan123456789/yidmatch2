@@ -17,7 +17,20 @@ interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: { email: string; pass: string; name: string; role: UserRole; companyName?: string; phone?: string; location?: string }) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: {
+    email: string;
+    pass: string;
+    name: string;
+    role: UserRole;
+    companyName?: string;
+    phone?: string;
+    location?: string;
+    country?: string;
+    interests?: string[];
+    minPay?: number;
+    schedule?: string;
+    smsAlerts?: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: (role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -174,6 +187,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     companyName?: string;
     phone?: string;
     location?: string;
+    country?: string;
+    interests?: string[];
+    minPay?: number;
+    schedule?: string;
+    smsAlerts?: boolean;
   }): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
     if (!data.email.trim() || !data.pass || !data.name.trim()) {
@@ -219,6 +237,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         companyName: data.companyName?.trim() || undefined,
         phone: data.phone?.trim() || undefined,
         location: data.location?.trim() || undefined,
+        country: data.country?.trim() || undefined,
+        interests: data.interests && data.interests.length > 0 ? data.interests : undefined,
+        categories: data.interests && data.interests.length > 0 ? data.interests : undefined,
+        minPay: data.minPay,
+        schedule: data.schedule || undefined,
+        smsAlerts: data.smsAlerts !== undefined ? data.smsAlerts : true,
         createdAt: new Date().toISOString()
       };
 

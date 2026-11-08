@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDailyJobs, createDailyJob } from "@/lib/db";
+import { getDailyJobs, createDailyJob, findMatchingAlerts } from "@/lib/db";
+import { sendJobAlertNotification } from "@/lib/sms/twilio";
 import { DailyJob } from "@/types";
 
 export async function GET(req: Request) {
@@ -53,13 +54,13 @@ export async function POST(req: Request) {
     }
 
     const newDailyJob: DailyJob = {
-      id: "daily-" + Math.random().toString(36).substring(2, 10),
+      id: body.id || "daily-" + Math.random().toString(36).substring(2, 10),
       title,
       category,
       location,
-      neighborhood: neighborhood || "Lakewood, NJ",
+      neighborhood: neighborhood || location || "Lakewood, NJ",
       dateNeeded: dateNeeded || "Today",
-      payAmount,
+      payAmount: String(payAmount),
       payType: payType || "Flat Rate",
       urgencyLevel: urgencyLevel || "URGENT",
       contactPhone,
@@ -73,7 +74,50 @@ export async function POST(req: Request) {
 
     await createDailyJob(newDailyJob);
 
-    return NextResponse.json({ success: true, dailyJob: newDailyJob });
+    // Automatically send Twilio SMS notifications to all matching people
+    let alertsSentCount = 0;
+    try {
+      const origin = req.headers.get("origin") || req.headers.get("host") || "http://localhost:3000";
+      const baseUrl = origin.startsWith("http") ? origin : `http://${origin}`;
+      const numericPay = Number(String(payAmount).replace(/[^0-9.]/g, "")) || undefined;
+
+      const matchingAlerts = await findMatchingAlerts({
+        title: newDailyJob.title,
+        category: newDailyJob.category,
+        location: newDailyJob.location,
+        neighborhood: newDailyJob.neighborhood,
+        description: newDailyJob.description,
+        pay: numericPay,
+      });
+
+      for (const alert of matchingAlerts) {
+        const smsRes = await sendJobAlertNotification({
+          to: alert.phone,
+          recipientName: alert.name,
+          job: {
+            id: newDailyJob.id,
+            title: newDailyJob.title,
+            company: newDailyJob.contactName,
+            location: newDailyJob.location,
+            category: newDailyJob.category,
+            payText: String(payAmount).includes("$") ? String(payAmount) : `$${payAmount}`,
+            pay: numericPay,
+          },
+          baseUrl,
+        });
+        if (smsRes.success) {
+          alertsSentCount++;
+        }
+      }
+    } catch (smsErr) {
+      console.warn("[POST /api/daily-jobs] SMS alert dispatch error:", smsErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      dailyJob: newDailyJob,
+      alertsSentCount,
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to post daily gig" }, { status: 500 });
   }

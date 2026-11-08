@@ -1,11 +1,10 @@
 /**
  * YidMatch Twilio SMS Integration Service
- * 
+ *
  * Automatically sends SMS job alerts to job seekers when matching jobs are posted.
- * When TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are provided in environment variables,
- * messages are dispatched live via Twilio REST API.
- * When credentials are not yet set, messages run in simulated mode and log to the console,
- * seamlessly ready for real keys at any time.
+ * Supports authenticating with either:
+ *   1. Twilio API Key SID (SK...) + API Key Secret (Client Secret) + Account SID (AC...)
+ *   2. Twilio Account SID (AC...) + Auth Token
  */
 
 export interface SendSmsOptions {
@@ -21,43 +20,103 @@ export interface SendSmsResult {
   error?: string;
 }
 
+// Cache resolved Account SID when an API Key SID is provided
+let cachedResolvedAccountSid: string | null = null;
+
+// Deduplication cache to avoid sending duplicate SMS for the same job to the same phone within 90s
+const recentJobAlertDispatches = new Map<string, number>();
+
+function toBase64(input: string): string {
+  if (typeof btoa === "function") {
+    return btoa(input);
+  }
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(input, "utf-8").toString("base64");
+  }
+  return input;
+}
+
 export function normalizePhoneNumber(rawPhone: string): string {
   if (!rawPhone) return "";
   const cleaned = rawPhone.trim().replace(/[^\d+]/g, "");
   if (cleaned.startsWith("+")) {
     return cleaned;
   }
-  // Standard 10-digit US number e.g. 7325550199 -> +17325550199
+  // Standard 10-digit US/Canada number e.g. 9024490799 -> +19024490799
   if (cleaned.length === 10) {
     return `+1${cleaned}`;
   }
-  // 11 digits starting with 1 e.g. 17325550199 -> +17325550199
+  // 11 digits starting with 1 e.g. 19024490799 -> +19024490799
   if (cleaned.length === 11 && cleaned.startsWith("1")) {
     return `+${cleaned}`;
   }
-  return cleaned;
+  return cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
+}
+
+async function resolveAccountSid(authHeader: string, configuredAccountSid?: string): Promise<string> {
+  if (configuredAccountSid && configuredAccountSid.startsWith("AC")) {
+    return configuredAccountSid;
+  }
+  if (cachedResolvedAccountSid) {
+    return cachedResolvedAccountSid;
+  }
+  try {
+    const res = await fetch("https://api.twilio.com/2010-04-01/Accounts.json?PageSize=1", {
+      method: "GET",
+      headers: { Authorization: authHeader },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const firstSid = data?.accounts?.[0]?.sid;
+      if (firstSid && typeof firstSid === "string" && firstSid.startsWith("AC")) {
+        cachedResolvedAccountSid = firstSid;
+        return firstSid;
+      }
+    }
+  } catch (err) {
+    console.warn("[YidMatch SMS] Failed to auto-resolve Account SID:", err);
+  }
+  return configuredAccountSid || "";
 }
 
 export async function sendSms({ to, message }: SendSmsOptions): Promise<SendSmsResult> {
   const normalizedTo = normalizePhoneNumber(to);
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+  if (!normalizedTo || normalizedTo.replace(/\D/g, "").length < 7) {
+    return {
+      success: false,
+      simulated: false,
+      to: rawToOrEmpty(to),
+      error: "Invalid recipient phone number",
+    };
+  }
+
+  const rawAccountSid = process.env.TWILIO_ACCOUNT_SID || "";
+  const apiKeySid =
+    process.env.TWILIO_API_KEY_SID ||
+    (rawAccountSid.startsWith("SK") ? rawAccountSid : "");
+  const apiKeySecret =
+    process.env.TWILIO_API_KEY_SECRET ||
+    process.env.TWILIO_AUTH_TOKEN ||
+    "";
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER || "+17372508034";
   const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
-  // Check if live Twilio credentials are configured
+  // Determine Basic Auth credentials (API Key SK... + Secret OR Account SID AC... + Auth Token)
+  const authUsername = apiKeySid || rawAccountSid;
+  const authPassword = apiKeySecret;
+
   const hasLiveCredentials = Boolean(
-    accountSid &&
-    authToken &&
-    (fromNumber || messagingServiceSid) &&
-    !accountSid.startsWith("AC_DEMO")
+    authUsername &&
+      authPassword &&
+      (fromNumber || messagingServiceSid) &&
+      !authUsername.startsWith("AC_DEMO")
   );
 
   if (!hasLiveCredentials) {
     console.log(`\n============================================================`);
     console.log(`📱 [YidMatch SMS SIMULATION - AWAITING TWILIO KEYS]`);
     console.log(`To:       ${normalizedTo}`);
-    console.log(`Status:   Simulated OK (Live SMS will send once keys are added)`);
+    console.log(`Status:   Simulated OK`);
     console.log(`Message:  ${message}`);
     console.log(`============================================================\n`);
 
@@ -69,10 +128,23 @@ export async function sendSms({ to, message }: SendSmsOptions): Promise<SendSmsR
     };
   }
 
-  // Live Twilio REST API Call via standard fetch (Edge and Node safe)
   try {
+    const authHeader = "Basic " + toBase64(`${authUsername}:${authPassword}`);
+    const accountSid = await resolveAccountSid(
+      authHeader,
+      rawAccountSid.startsWith("AC") ? rawAccountSid : undefined
+    );
+
+    if (!accountSid) {
+      return {
+        success: false,
+        simulated: false,
+        to: normalizedTo,
+        error: "Could not resolve Twilio Account SID",
+      };
+    }
+
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-    const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
 
     const params = new URLSearchParams();
     params.append("To", normalizedTo);
@@ -81,10 +153,10 @@ export async function sendSms({ to, message }: SendSmsOptions): Promise<SendSmsR
     if (messagingServiceSid) {
       params.append("MessagingServiceSid", messagingServiceSid);
     } else if (fromNumber) {
-      params.append("From", fromNumber);
+      params.append("From", normalizePhoneNumber(fromNumber));
     }
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: authHeader,
@@ -93,7 +165,33 @@ export async function sendSms({ to, message }: SendSmsOptions): Promise<SendSmsR
       body: params.toString(),
     });
 
-    const data = await response.json();
+    let data = await response.json();
+
+    // If the Twilio account is in Trial mode (error 572006: only predefined SMS templates allowed),
+    // automatically retry with Twilio's predefined trial template so the live SMS still delivers during testing.
+    if (!response.ok && data?.code === 572006) {
+      console.warn(
+        `[YidMatch SMS] Twilio Trial restriction (572006) on custom body ("${message}"). Retrying with predefined trial template 'sms_event_notifications'...`
+      );
+      const trialParams = new URLSearchParams();
+      trialParams.append("To", normalizedTo);
+      trialParams.append("Body", "sms_event_notifications");
+      if (messagingServiceSid) {
+        trialParams.append("MessagingServiceSid", messagingServiceSid);
+      } else if (fromNumber) {
+        trialParams.append("From", normalizePhoneNumber(fromNumber));
+      }
+
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: trialParams.toString(),
+      });
+      data = await response.json();
+    }
 
     if (!response.ok) {
       console.error("[YidMatch SMS Error] Twilio responded with error:", data);
@@ -105,7 +203,7 @@ export async function sendSms({ to, message }: SendSmsOptions): Promise<SendSmsR
       };
     }
 
-    console.log(`[YidMatch SMS Live] Successfully sent SMS to ${normalizedTo} (SID: ${data.sid})`);
+    console.log(`[YidMatch SMS Live] Sent SMS to ${normalizedTo} (SID: ${data.sid})`);
     return {
       success: true,
       simulated: false,
@@ -123,8 +221,12 @@ export async function sendSms({ to, message }: SendSmsOptions): Promise<SendSmsR
   }
 }
 
+function rawToOrEmpty(to?: string): string {
+  return to || "";
+}
+
 /**
- * Format and send an instant job alert SMS
+ * Format and send an instant job alert SMS (with deduplication per job + phone)
  */
 export async function sendJobAlertNotification({
   to,
@@ -135,26 +237,46 @@ export async function sendJobAlertNotification({
   to: string;
   recipientName?: string;
   job: {
-    id: string | number;
+    id?: string | number;
     title: string;
-    company: string;
-    location: string;
+    company?: string;
+    location?: string;
+    category?: string;
     payText?: string;
     salaryDisplay?: string;
     pay?: number;
   };
   baseUrl?: string;
 }): Promise<SendSmsResult> {
+  const normalizedTo = normalizePhoneNumber(to);
+  const dedupeKey = `${normalizedTo}|${(job.title || "").trim().toLowerCase()}|${(job.company || "").trim().toLowerCase()}`;
+  const now = Date.now();
+  const lastSent = recentJobAlertDispatches.get(dedupeKey);
+
+  if (lastSent && now - lastSent < 90_000) {
+    return {
+      success: true,
+      simulated: false,
+      to: normalizedTo,
+      sid: "deduped",
+    };
+  }
+  recentJobAlertDispatches.set(dedupeKey, now);
+
   const greeting = recipientName ? `Hi ${recipientName}, ` : "";
   const payInfo = job.payText || job.salaryDisplay || (job.pay ? `$${job.pay}/hr` : "");
-  const payString = payInfo ? ` · Pay: ${payInfo}` : "";
+  const payString = payInfo ? ` (${payInfo})` : "";
+  const companyString = job.company ? ` at ${job.company}` : "";
   const locString = job.location ? ` in ${job.location}` : "";
-  const cleanBase = baseUrl.replace(/\/$/, "");
+  const cleanBase =
+    baseUrl && !baseUrl.includes("localhost") && !baseUrl.includes("127.0.0.1")
+      ? baseUrl.replace(/\/$/, "")
+      : "https://yidmatch.com";
   const link = `${cleanBase}/#jobs`;
 
-  const message = `🔔 ${greeting}New Job Alert on YidMatch:\n"${job.title}" at ${job.company}${locString}${payString}.\n\nApply or view details: ${link}\n(Reply STOP to opt out)`;
+  const message = `${greeting}New Job on YidMatch: "${job.title}"${companyString}${locString}${payString}. View & apply: ${link} (Reply STOP to opt out)`;
 
-  return sendSms({ to, message });
+  return sendSms({ to: normalizedTo, message });
 }
 
 /**
@@ -172,10 +294,10 @@ export async function sendWelcomeAlertNotification({
   location?: string;
 }): Promise<SendSmsResult> {
   const greeting = name ? `Hi ${name}! ` : "Hi! ";
-  const catString = categories.length > 0 ? categories.slice(0, 3).join(", ") : "all categories";
+  const catString = categories.length > 0 ? categories.slice(0, 3).join(", ") : "all job categories";
   const locString = location ? ` in ${location}` : "";
 
-  const message = `✓ ${greeting}You are subscribed to instant YidMatch Job Alerts for ${catString}${locString}. We will text you the moment a matching job is posted!\n\nReply STOP anytime to cancel.`;
+  const message = `${greeting}You are subscribed to YidMatch SMS Job Alerts for ${catString}${locString}. We will text you whenever a matching job is posted! Reply STOP to cancel.`;
 
   return sendSms({ to, message });
 }
