@@ -732,6 +732,8 @@ export default function SameDayGigsPage() {
           <div className="foot-links">
             <a href="#" onClick={e => { e.preventDefault(); setPostModalOpen(true); }}>Post a Gig ($10)</a>
             <a href="#" onClick={e => { e.preventDefault(); setContactModalOpen(true); }}>Contact Us</a>
+            <a href="/terms">Terms &amp; Conditions</a>
+            <a href="/privacy">Privacy Policy</a>
           </div>
         </div>
       </footer>

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { formatJobAge, formatDbDate } from "@/lib/date-utils";
 import { STRIPE_PAYMENT_LINKS } from "@/lib/stripe";
@@ -3480,7 +3481,8 @@ export default function HomePage() {
             <a href="#jobs">Jobs</a>
             <a href="#" onClick={(e) => { e.preventDefault(); handleChooseHiring("jobs"); }}>For Employers</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setContactModalOpen(true); }}>💬 Contact Owner</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); showToast("Privacy policy placeholder."); }}>Privacy</a>
+            <Link href="/terms">Terms &amp; Conditions</Link>
+            <Link href="/privacy">Privacy Policy</Link>
           </div>
         </div>
       </footer>

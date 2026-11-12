@@ -81,7 +81,14 @@ export const Footer = () => {
 
         {/* Bottom bar */}
         <div className="border-t border-slate-800 mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} YID MATCH. All rights reserved. Connecting with honesty and kavod.</p>
+          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <p>© {new Date().getFullYear()} YID MATCH. All rights reserved.</p>
+            <div className="flex items-center space-x-3 text-slate-400">
+              <Link href="/terms" className="hover:text-white transition">Terms &amp; Conditions</Link>
+              <span>•</span>
+              <Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link>
+            </div>
+          </div>
           <p className="mt-2 sm:mt-0 flex items-center space-x-1">
             <span>Built for Klal Yisroel</span>
             <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500" />
