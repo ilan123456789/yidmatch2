@@ -110,6 +110,7 @@ async function getTwilioConfig(): Promise<TwilioRuntimeConfig> {
       const apiKeySid = f.apiKeySid?.stringValue || "";
       const apiKeySecret = f.apiKeySecret?.stringValue || "";
       const fromNumber = f.fromNumber?.stringValue || "+15342025188";
+      const messagingServiceSid = f.messagingServiceSid?.stringValue || envMessagingServiceSid;
 
       if (accountSid && authToken) {
         cachedFirestoreConfig = {
@@ -117,7 +118,7 @@ async function getTwilioConfig(): Promise<TwilioRuntimeConfig> {
           apiKeySid: accountSid,
           apiKeySecret: authToken,
           fromNumber,
-          messagingServiceSid: envMessagingServiceSid,
+          messagingServiceSid,
         };
         return cachedFirestoreConfig;
       }
@@ -128,7 +129,7 @@ async function getTwilioConfig(): Promise<TwilioRuntimeConfig> {
           apiKeySid,
           apiKeySecret,
           fromNumber,
-          messagingServiceSid: envMessagingServiceSid,
+          messagingServiceSid,
         };
         return cachedFirestoreConfig;
       }
