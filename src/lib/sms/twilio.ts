@@ -80,7 +80,7 @@ async function getTwilioConfig(): Promise<TwilioRuntimeConfig> {
     process.env.TWILIO_API_KEY_SECRET ||
     process.env.TWILIO_AUTH_TOKEN ||
     "";
-  const envFromNumber = process.env.TWILIO_PHONE_NUMBER || "+17372508034";
+  const envFromNumber = process.env.TWILIO_PHONE_NUMBER || "+15342025188";
   const envMessagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
   if ((envApiKeySid || envAccountSid) && envApiKeySecret) {
@@ -109,7 +109,7 @@ async function getTwilioConfig(): Promise<TwilioRuntimeConfig> {
       const authToken = f.authToken?.stringValue || "";
       const apiKeySid = f.apiKeySid?.stringValue || "";
       const apiKeySecret = f.apiKeySecret?.stringValue || "";
-      const fromNumber = f.fromNumber?.stringValue || "+17372508034";
+      const fromNumber = f.fromNumber?.stringValue || "+15342025188";
 
       if (accountSid && authToken) {
         cachedFirestoreConfig = {
@@ -206,7 +206,7 @@ async function resolveSenderPhoneNumber(
   } catch (err) {
     console.warn("[YidMatch SMS] Failed to auto-resolve Twilio sender phone number:", err);
   }
-  return normalizePhoneNumber(configuredFromNumber || "+17372508034");
+  return normalizePhoneNumber(configuredFromNumber || "+15342025188");
 }
 
 export async function sendSms({
