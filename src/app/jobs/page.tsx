@@ -51,6 +51,151 @@ const JOB_CATEGORIES = [
   "Other"
 ];
 
+const INTEREST_OPTIONS = [
+  { label: "🧾 Accounting", value: "Accounting" },
+  { label: "🗂️ Admin", value: "Administration" },
+  { label: "📈 Sales", value: "Sales" },
+  { label: "🎧 Customer Service", value: "Customer Service" },
+  { label: "❄️ HVAC", value: "HVAC" },
+  { label: "🔧 Plumbing", value: "Plumbing" },
+  { label: "⚡ Electrical", value: "Electrical" },
+  { label: "🏗️ Construction", value: "Construction" },
+  { label: "🚐 Driving", value: "Driving" },
+  { label: "📦 Warehouse", value: "Warehouse" },
+  { label: "💻 IT / Tech", value: "IT" },
+  { label: "🎨 Design", value: "Design" },
+  { label: "📣 Marketing", value: "Marketing" },
+  { label: "🏢 Real Estate", value: "Real Estate" },
+  { label: "🩺 Healthcare", value: "Healthcare" },
+  { label: "📚 Education", value: "Education" },
+  { label: "🍽️ Food Service", value: "Food Service" },
+  { label: "🛍️ Retail", value: "Retail" },
+  { label: "🛡️ Security", value: "Security" },
+  { label: "👔 Management", value: "Management" },
+  { label: "✨ Other", value: "Other" }
+];
+
+function DropdownWithCustom({
+  id,
+  value,
+  onChange,
+  options,
+  placeholder,
+  allowEmpty,
+  emptyLabel,
+  customPlaceholder = "Type your own...",
+  allowCustom = true,
+}: {
+  id?: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: (string | { value: string; label: string })[];
+  placeholder?: string;
+  allowEmpty?: boolean;
+  emptyLabel?: string;
+  customPlaceholder?: string;
+  allowCustom?: boolean;
+}) {
+  const normOptions = useMemo(() => {
+    return options.map(o => (typeof o === "string" ? { value: o, label: o } : o));
+  }, [options]);
+
+  const isKnownOption = (allowEmpty && value === "") || normOptions.some(o => o.value === value);
+  const [isCustomMode, setIsCustomMode] = useState(allowCustom && !isKnownOption && Boolean(value));
+  const [customDraft, setCustomDraft] = useState(allowCustom && !isKnownOption && Boolean(value) ? value : "");
+
+  useEffect(() => {
+    if (!allowCustom) {
+      setIsCustomMode(false);
+      return;
+    }
+    const known = (allowEmpty && value === "") || normOptions.some(o => o.value === value);
+    if (known) {
+      setIsCustomMode(false);
+    } else if (value && value !== "__custom__") {
+      setIsCustomMode(true);
+      setCustomDraft(value);
+    }
+  }, [value, normOptions, allowEmpty, allowCustom]);
+
+  return (
+    <div style={{ width: "100%" }}>
+      <select
+        id={id}
+        value={isCustomMode ? "__custom__" : value}
+        onChange={(e) => {
+          if (e.target.value === "__custom__") {
+            setIsCustomMode(true);
+            const initial = customDraft || "";
+            onChange(initial);
+          } else {
+            setIsCustomMode(false);
+            onChange(e.target.value);
+          }
+        }}
+      >
+        {allowEmpty && <option value="">{emptyLabel || "Any"}</option>}
+        {placeholder && !allowEmpty && <option value="">{placeholder}</option>}
+        {normOptions.map(opt => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+        {allowCustom && (
+          <option value="__custom__">✏️ Other / Type your own...</option>
+        )}
+      </select>
+
+      {isCustomMode && (
+        <div style={{ marginTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder={customPlaceholder}
+            value={value === "__custom__" ? "" : value}
+            onChange={(e) => {
+              setCustomDraft(e.target.value);
+              onChange(e.target.value);
+            }}
+            autoFocus
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              borderRadius: "10px",
+              border: "1.5px solid #1e72c8",
+              fontSize: "14px",
+              background: "#f0f7ff",
+              color: "#0a2540",
+              fontWeight: "600",
+            }}
+          />
+          <button
+            type="button"
+            title="Reset to preset options"
+            onClick={() => {
+              setIsCustomMode(false);
+              setCustomDraft("");
+              onChange(allowEmpty ? "" : normOptions[0]?.value || "");
+            }}
+            style={{
+              padding: "8px 12px",
+              fontSize: "12px",
+              fontWeight: 700,
+              borderRadius: "8px",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              cursor: "pointer",
+              color: "#64748b",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ✕ Reset
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getJobContactInfo(job: { title: string; company: string; country?: string; location: string }) {
   const companySlug = (job.company || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -136,6 +281,62 @@ function JobsDirectoryContent() {
   const [resumeExp, setResumeExp] = useState("");
   const [resumeSkills, setResumeSkills] = useState("");
   const [resumeGenerated, setResumeGenerated] = useState(false);
+
+  // Email Job Alerts Modal State
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertEmail, setAlertEmail] = useState("");
+  const [alertName, setAlertName] = useState(user?.name || "");
+  const [alertPhone, setAlertPhone] = useState("");
+  const [alertCategories, setAlertCategories] = useState<string[]>([]);
+  const [alertLocation, setAlertLocation] = useState("");
+  const [alertMinPay, setAlertMinPay] = useState("0");
+  const [alertSubmitting, setAlertSubmitting] = useState(false);
+  const [alertSuccess, setAlertSuccess] = useState(false);
+  const [alertError, setAlertError] = useState("");
+
+  const toggleAlertCategory = (cat: string) => {
+    setAlertCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const handleSubmitAlertModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAlertError("");
+    const cleanEmail = alertEmail.trim();
+    if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      setAlertError("Please enter a valid email address (e.g. name@example.com).");
+      return;
+    }
+
+    setAlertSubmitting(true);
+    try {
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: cleanEmail,
+          phone: alertPhone || undefined,
+          name: alertName,
+          categories: alertCategories.length > 0 ? alertCategories : [],
+          locations: alertLocation ? [alertLocation] : [],
+          neighborhood: alertLocation,
+          minPay: alertMinPay !== "0" ? Number(alertMinPay) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAlertSuccess(true);
+        showToast("✓ Email Job Alerts activated!");
+      } else {
+        setAlertError(data.error || "Could not register alert. Please try again.");
+      }
+    } catch {
+      setAlertError("Failed to connect to server. Please check your connection and try again.");
+    } finally {
+      setAlertSubmitting(false);
+    }
+  };
 
   // Toast
   const [toastMessage, setToastMessage] = useState("");
@@ -338,7 +539,7 @@ function JobsDirectoryContent() {
 
   // Lock body scroll when any modal is open
   useEffect(() => {
-    if (!!selectedJob || applyModalOpen || resumeModalOpen) {
+    if (!!selectedJob || applyModalOpen || resumeModalOpen || alertModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -346,7 +547,7 @@ function JobsDirectoryContent() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [selectedJob, applyModalOpen, resumeModalOpen]);
+  }, [selectedJob, applyModalOpen, resumeModalOpen, alertModalOpen]);
 
   // Save / Bookmark job
   const handleToggleSaveJob = (job: JobItem) => {
@@ -750,53 +951,99 @@ function JobsDirectoryContent() {
         </div>
       </header>
 
-      {/* Main Content - EXACT SAME AS PHOTO 3 */}
+      {/* Main Content */}
       <main id="jobsPageMain">
         <section className="section" id="jobs" style={{ paddingTop: "24px" }}>
           <div className="shell">
-            {/* Search Box */}
-            <div className="search-card" style={{ marginBottom: "20px" }}>
-              <div className="search-grid">
-                <div className="search-input-wrap">
-                  <span className="search-icon">🔎</span>
+            {/* Section Head matching #jobs */}
+            <div className="section-head">
+              <div>
+                <h2 className="compact-title">Find a job</h2>
+                <p className="compact-copy">
+                  Search any job type in any location. You are not limited to preset cities or a few categories.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-light"
+                id="createJobAlertBtn"
+                onClick={() => {
+                  setAlertSuccess(false);
+                  setAlertModalOpen(true);
+                }}
+              >
+                🔔 Create Job Alert
+              </button>
+            </div>
+
+            {/* Full-width Search Box matching #jobs dashboard-search */}
+            <div className="dashboard-search">
+              <div className="search-row jobs-search-row">
+                <div className="search-box">
+                  <span style={{ fontSize: "16px" }}>🔎</span>
                   <input
                     type="text"
                     id="searchJobsInput"
                     placeholder="Job title, keywords, or company..."
                     value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
+                    onChange={(e) => {
+                      setSearchInput(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   />
                 </div>
-                <div className="search-input-wrap">
-                  <span className="search-icon">📍</span>
+                <div className="search-box">
+                  <span style={{ fontSize: "16px" }}>📍</span>
                   <input
                     type="text"
                     id="locationSearchInput"
                     placeholder="Location (e.g. Lakewood, Brooklyn)..."
                     value={locationSearch}
-                    onChange={(e) => setLocationSearch(e.target.value)}
+                    onChange={(e) => {
+                      setLocationSearch(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   />
                 </div>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  style={{
-                    height: "48px",
-                    borderRadius: "12px",
-                    border: "1px solid #dfe7ef",
-                    padding: "0 14px",
-                    background: "#ffffff",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    outline: "none"
+                <div className="search-box">
+                  <span style={{ fontSize: "16px" }}>🏷️</span>
+                  <select
+                    id="categorySearchSelect"
+                    value={categoryFilter}
+                    onChange={(e) => {
+                      setCategoryFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      width: "100%",
+                      border: 0,
+                      outline: "none",
+                      padding: "13px 0",
+                      background: "transparent",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#334155",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {JOB_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat === "All Categories" ? "" : cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  id="searchJobsBtn"
+                  style={{ height: "46px", padding: "0 22px", whiteSpace: "nowrap" }}
+                  onClick={() => {
+                    setCurrentPage(1);
                   }}
                 >
-                  {JOB_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat === "All Categories" ? "" : cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                  Search Jobs
+                </button>
               </div>
             </div>
 
@@ -1288,6 +1535,171 @@ function JobsDirectoryContent() {
                   <button type="submit" className="btn btn-primary" style={{ marginTop: "8px" }}>
                     Generate Resume
                   </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Instant Email Job Alert Modal */}
+      {alertModalOpen && (
+        <div
+          className="modal open"
+          id="jobAlertModal"
+          onClick={(e) => {
+            if ((e.target as HTMLElement).id === "jobAlertModal") setAlertModalOpen(false);
+          }}
+        >
+          <div className="modal-box" style={{ maxWidth: "560px" }}>
+            <div className="modal-head">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "24px" }}>🔔</span>
+                <div>
+                  <strong style={{ fontSize: "18px", color: "#092040" }}>Instant Email Job Alerts</strong>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>Get emailed the second matching jobs are posted</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="close"
+                id="closeAlertModal"
+                onClick={() => setAlertModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {alertSuccess ? (
+                <div style={{ textAlign: "center", padding: "24px 12px" }}>
+                  <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "rgba(30, 114, 200, 0.12)", color: "#1e72c8", fontSize: "32px", display: "grid", placeItems: "center", margin: "0 auto 16px" }}>
+                    ✓
+                  </div>
+                  <h3 style={{ fontSize: "22px", color: "#092040", marginBottom: "8px" }}>Alerts Activated!</h3>
+                  <p style={{ color: "#475569", lineHeight: "1.5", fontSize: "15px", maxWidth: "420px", margin: "0 auto 16px" }}>
+                    We have registered <b>{alertEmail}</b>. You will receive an instant email notification whenever a matching job is published!
+                  </p>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ minWidth: "160px" }}
+                    onClick={() => setAlertModalOpen(false)}
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitAlertModal}>
+                  {alertError && (
+                    <div style={{ color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", padding: "10px 14px", borderRadius: "10px", marginBottom: "16px", fontWeight: "600", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span>⚠️</span>
+                      <span>{alertError}</span>
+                    </div>
+                  )}
+
+                  <div className="field" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#092040" }}>
+                      Email Address <span className="required-star">*</span>
+                    </label>
+                    <input
+                      id="alertEmailInput"
+                      type="email"
+                      required
+                      placeholder="you@example.com"
+                      value={alertEmail}
+                      onChange={(e) => {
+                        setAlertEmail(e.target.value);
+                        if (alertError) setAlertError("");
+                      }}
+                      style={{ fontSize: "16px", padding: "12px 14px" }}
+                    />
+                    <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                      We only send emails for jobs matching your preferences. Unsubscribe anytime with one click.
+                    </div>
+                  </div>
+
+                  <div className="field" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#092040" }}>
+                      Your Name (Optional)
+                    </label>
+                    <input
+                      id="alertNameInput"
+                      type="text"
+                      placeholder="e.g. Yossi or Rivka"
+                      value={alertName}
+                      onChange={(e) => setAlertName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#092040" }}>
+                      Job Categories (Select any or all)
+                    </label>
+                    <div className="choice-grid" style={{ maxHeight: "160px", overflowY: "auto", padding: "4px" }}>
+                      {INTEREST_OPTIONS.map((item) => {
+                        const isSelected = alertCategories.includes(item.value);
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            className={`choice ${isSelected ? "selected" : ""}`}
+                            onClick={() => toggleAlertCategory(item.value)}
+                          >
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="form-grid" style={{ marginBottom: "16px" }}>
+                    <div className="field">
+                      <label style={{ fontWeight: "700", color: "#092040" }}>Preferred Location</label>
+                      <input
+                        id="alertLocationInput"
+                        placeholder="e.g. Lakewood, Boro Park, Monsey"
+                        value={alertLocation}
+                        onChange={(e) => setAlertLocation(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label style={{ fontWeight: "700", color: "#092040" }}>Preferred Pay</label>
+                      <DropdownWithCustom
+                        id="alertMinPayInput"
+                        value={alertMinPay}
+                        onChange={setAlertMinPay}
+                        options={[
+                          { value: "0", label: "Any Pay" },
+                          { value: "20", label: "$20+/hr" },
+                          { value: "25", label: "$25+/hr" },
+                          { value: "30", label: "$30+/hr" },
+                          { value: "35", label: "$35+/hr" },
+                          { value: "40", label: "$40+/hr" },
+                        ]}
+                        customPlaceholder="Enter custom preferred pay (e.g. $45+/hr)..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="modal-actions" style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--line)" }}>
+                    <button
+                      type="button"
+                      className="btn btn-light"
+                      onClick={() => setAlertModalOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      id="submitAlertModalBtn"
+                      className="btn btn-primary"
+                      disabled={alertSubmitting}
+                      style={{ minWidth: "190px" }}
+                    >
+                      {alertSubmitting ? "Activating..." : "🔔 Turn On Email Alerts"}
+                    </button>
+                  </div>
                 </form>
               )}
             </div>

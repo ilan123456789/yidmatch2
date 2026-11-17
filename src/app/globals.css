@@ -2249,6 +2249,20 @@ body {
   gap: 10px;
 }
 
+.jobs-search-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.1fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .jobs-search-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .search-box {
   display: flex;
   align-items: center;
