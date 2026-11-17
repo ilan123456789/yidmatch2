@@ -8,8 +8,12 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
+        const cleanId = (id || "").replace(/^job-job-/, "job-");
 
-        const job = await getJobById(id);
+        let job = await getJobById(cleanId);
+        if (!job && cleanId !== id) {
+          job = await getJobById(id);
+        }
         if (!job) {
             return NextResponse.json({ error: "Job not found" }, { status: 404 });
         }

@@ -95,7 +95,9 @@ export default function JobDetailPage() {
   useEffect(() => {
     async function loadJob() {
       try {
-        const res = await fetch(`/api/jobs/${params.id}`);
+        const rawId = Array.isArray(params?.id) ? params.id[0] : (params?.id as string) || "";
+        const cleanId = rawId.replace(/^job-job-/, "job-");
+        const res = await fetch(`/api/jobs/${cleanId}`);
         const data = await res.json();
         if (data.job) {
           setJob(data.job);
@@ -107,10 +109,10 @@ export default function JobDetailPage() {
         setLoading(false);
       }
     }
-    if (params.id) {
+    if (params?.id) {
       loadJob();
     }
-  }, [params.id]);
+  }, [params?.id]);
 
   const handleApplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +168,7 @@ export default function JobDetailPage() {
       <div className="max-w-5xl mx-auto px-4 py-16 text-center space-y-4">
         <h2 className="text-2xl font-bold text-slate-800">Job Not Found</h2>
         <p className="text-slate-500">This listing may have expired or been filled.</p>
-        <Link href="/" className="inline-block px-4 py-2 bg-brand-navy text-white rounded-lg">
+        <Link href="/jobs" className="inline-block px-4 py-2 bg-brand-navy text-white rounded-lg">
           Back to Listings
         </Link>
       </div>
@@ -179,7 +181,7 @@ export default function JobDetailPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Back link */}
       <div>
-        <Link href="/" className="inline-flex items-center space-x-1.5 text-sm font-semibold text-brand-blue hover:underline">
+        <Link href="/jobs" className="inline-flex items-center space-x-1.5 text-sm font-semibold text-brand-blue hover:underline">
           <ArrowLeft className="w-4 h-4" />
           <span>Back to All Jobs</span>
         </Link>

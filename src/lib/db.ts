@@ -237,19 +237,93 @@ async function fetchFirestoreAlerts(): Promise<JobAlert[]> {
 
 /* ==================== JOBS ==================== */
 
+async function fetchFirestoreJobs(): Promise<Job[]> {
+  try {
+    const res = await fetch(`${FIRESTORE_BASE_URL}/jobs?pageSize=100`, {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.documents)) return [];
+
+    return data.documents.map((doc: any): Job => {
+      const f = doc.fields || {};
+      const docId = f.id?.stringValue || doc.name?.split("/").pop() || "job";
+      const payNum = Number(f.pay?.integerValue || f.pay?.doubleValue || f.salaryMin?.integerValue || 0);
+      const payText = f.payText?.stringValue || (payNum > 0 ? (payNum >= 500 ? `$${payNum.toLocaleString()}/yr` : `$${payNum}/hr`) : "Competitive");
+      const requirements = Array.isArray(f.requirements?.arrayValue?.values)
+        ? f.requirements.arrayValue.values.map((v: any) => v.stringValue).filter(Boolean)
+        : [];
+      const perks = Array.isArray(f.heimishPerks?.arrayValue?.values)
+        ? f.heimishPerks.arrayValue.values.map((v: any) => v.stringValue).filter(Boolean)
+        : [];
+
+      return {
+        id: docId,
+        title: f.title?.stringValue || "Job Opening",
+        company: f.company?.stringValue || "Employer on Yid Match",
+        category: f.category?.stringValue || "General",
+        location: f.location?.stringValue || "Local",
+        country: f.country?.stringValue || "United States",
+        neighborhood: f.neighborhood?.stringValue || f.location?.stringValue || "Local",
+        jobType: f.type?.stringValue || f.jobType?.stringValue || "Full-Time",
+        pay: payNum > 0 ? payNum : undefined,
+        payText,
+        salaryMin: payNum > 0 ? payNum : undefined,
+        salaryType: f.salaryType?.stringValue || (payNum >= 500 ? "Year" : "Hour"),
+        salaryDisplay: payText,
+        description: f.desc?.stringValue || f.description?.stringValue || "Great opportunity with a heimish workplace.",
+        requirements,
+        heimishPerks: perks,
+        status: (f.status?.stringValue as any) || "ACTIVE",
+        employerId: f.employerId?.stringValue || "emp",
+        employerEmail: f.employerEmail?.stringValue || "",
+        contactEmail: f.contactEmail?.stringValue || f.employerEmail?.stringValue || "",
+        paymentStatus: (f.paymentStatus?.stringValue as any) || "PAID",
+        paymentAmount: Number(f.paymentAmount?.integerValue || 35),
+        createdAt: f.createdAt?.stringValue || new Date().toISOString(),
+        postedAt: f.postedAt?.stringValue || "",
+        isSponsored: Boolean(f.isSponsored?.booleanValue),
+      };
+    });
+  } catch (err) {
+    console.warn("[Firestore REST] Could not fetch jobs:", err);
+    return [];
+  }
+}
+
 export async function getJobs(): Promise<Job[]> {
   const db = getLocalDb();
-  return db.jobs.filter((j) => j.status === "ACTIVE");
+  const firestoreJobs = await fetchFirestoreJobs();
+  const mergedMap = new Map<string, Job>();
+
+  // Add local jobs first
+  for (const j of db.jobs || []) {
+    if (j.status === "ACTIVE") mergedMap.set(j.id, j);
+  }
+
+  // Overlay Firestore jobs
+  for (const fj of firestoreJobs) {
+    if (fj.status === "ACTIVE") mergedMap.set(fj.id, { ...mergedMap.get(fj.id), ...fj });
+  }
+
+  return Array.from(mergedMap.values());
 }
 
 export async function getAllEmployerJobs(employerId: string): Promise<Job[]> {
-  const db = getLocalDb();
-  return db.jobs.filter((j) => j.employerId === employerId);
+  const allJobs = await getJobs();
+  return allJobs.filter((j) => j.employerId === employerId);
 }
 
-export async function getJobById(id: string): Promise<Job | null> {
+export async function getJobById(rawId: string): Promise<Job | null> {
+  const cleanId = rawId.replace(/^job-job-/, "job-");
   const db = getLocalDb();
-  return db.jobs.find((j) => j.id === id) || null;
+  const localHit = db.jobs.find((j) => j.id === cleanId || j.id === rawId);
+  if (localHit) return localHit;
+
+  const firestoreJobs = await fetchFirestoreJobs();
+  return firestoreJobs.find((j) => j.id === cleanId || j.id === rawId || j.id.includes(cleanId)) || null;
 }
 
 export async function createJob(job: Job): Promise<Job> {

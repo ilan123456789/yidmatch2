@@ -506,6 +506,17 @@ export default function HomePage() {
       if (typeof window !== "undefined") {
         const hash = window.location.hash;
         const search = window.location.search;
+
+        // If visiting a specific job via hash (e.g. /#job-job-1794883356949 or /#job-1794883356949) or ?job=...
+        const jobHashMatch = hash.match(/^#job-(.+)$/);
+        const jobParamMatch = search.match(/[?&]job=([^&]+)/);
+        const rawTargetId = jobHashMatch ? jobHashMatch[1] : jobParamMatch ? decodeURIComponent(jobParamMatch[1]) : null;
+        if (rawTargetId) {
+          const cleanTargetId = rawTargetId.replace(/^job-job-/, "job-");
+          window.location.replace(`/jobs/${cleanTargetId}`);
+          return true;
+        }
+
         if (hash === "#jobs" || search.includes("view=jobs") || search.includes("page=all-jobs")) {
           setEntryGateOpen(false);
           setShowBackToStart(true);
@@ -980,16 +991,7 @@ export default function HomePage() {
   };
 
   const handleChooseBrowseAll = () => {
-    dismissEntryGate("#jobs");
-    setProfileGateOpen(false);
-    setTypeFilter("");
-    setQuickCat("");
-    setCategoryFilter("");
-    setCountryFilter("");
-    setPayFilter("0");
-    setTimeout(() => {
-      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    window.location.href = "/jobs";
   };
 
   const handleChooseHiring = (source: "front" | "jobs" = "front") => {
@@ -3698,14 +3700,14 @@ export default function HomePage() {
                             >
                               Apply Now
                             </button>
-                            <button
-                              type="button"
+                            <Link
+                              href={`/jobs/${String(j.id).replace(/^job-job-/, "job-")}`}
                               className="btn btn-light job-action-btn"
                               id={`viewJobBtn-${j.id}`}
-                              onClick={() => setSelectedJob(j)}
+                              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                             >
                               View Details
-                            </button>
+                            </Link>
                             <button
                               type="button"
                               className={`btn ${savedJobs.includes(j.id) ? "btn-warning" : "btn-light"} job-action-btn`}

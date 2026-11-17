@@ -90,9 +90,10 @@ export async function sendJobAlertEmail(params: SendEmailAlertParams): Promise<S
     description = description.slice(0, 277) + "...";
   }
 
-  const jobUrl = `${baseUrl}/#job-${params.job.id}`;
-  const preferencesUrl = `${baseUrl}/#job-alerts`;
-  const unsubscribeUrl = `${baseUrl}/#unsubscribe`;
+  const cleanJobId = params.job.id.replace(/^job-job-/, "job-");
+  const jobUrl = `${baseUrl}/jobs/${cleanJobId}`;
+  const preferencesUrl = `${baseUrl}/jobs#job-alerts`;
+  const unsubscribeUrl = `${baseUrl}/jobs#unsubscribe`;
 
   const payload = {
     service_id: serviceId,
