@@ -513,7 +513,51 @@ export default function HomePage() {
         const rawTargetId = jobHashMatch ? jobHashMatch[1] : jobParamMatch ? decodeURIComponent(jobParamMatch[1]) : null;
         if (rawTargetId) {
           const cleanTargetId = rawTargetId.replace(/^job-job-/, "job-");
-          window.location.replace(`/jobs/${cleanTargetId}`);
+          const bareId = cleanTargetId.replace(/^job-/, "");
+          const fullJobId = cleanTargetId.startsWith("job-") ? cleanTargetId : `job-${cleanTargetId}`;
+
+          setEntryGateOpen(false);
+          setProfileGateOpen(false);
+          setEmployerGateOpen(false);
+          setShowBackToStart(true);
+
+          // Find in existing jobs or fetch directly from API
+          const found = jobsList.find(j => {
+            const sid = String(j.id);
+            return sid === rawTargetId || sid === cleanTargetId || sid === fullJobId || sid === bareId || sid.includes(bareId);
+          });
+
+          if (found) {
+            setSelectedJob(found);
+          } else {
+            fetch(`/api/jobs/${fullJobId}`)
+              .then(r => r.json())
+              .then(data => {
+                if (data.job) {
+                  const fj = data.job;
+                  setSelectedJob({
+                    id: fj.id,
+                    icon: fj.icon || (fj.isSponsored ? "⭐" : "💼"),
+                    title: fj.title,
+                    company: fj.company,
+                    location: fj.location || fj.neighborhood || "Local",
+                    country: fj.country || "United States",
+                    category: fj.category || "General",
+                    type: fj.jobType || "Full-Time",
+                    pay: fj.pay || fj.salaryMin || 0,
+                    payText: fj.payText || fj.salaryDisplay || (fj.pay ? `$${fj.pay}/hr` : "Competitive"),
+                    desc: fj.description || "",
+                    age: "Active",
+                    isSponsored: Boolean(fj.isSponsored),
+                  });
+                }
+              })
+              .catch(err => console.warn("Failed to load direct target job:", err));
+          }
+
+          setTimeout(() => {
+            document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
+          }, 150);
           return true;
         }
 
@@ -721,6 +765,29 @@ export default function HomePage() {
               const toAdd = mapped.filter(m => !seen.has(`${m.title.trim().toLowerCase()}|${m.company.trim().toLowerCase()}`));
               return [...prev, ...toAdd];
             });
+
+            // Automatically check if URL hash has a direct job to open
+            if (typeof window !== "undefined") {
+              const h = window.location.hash;
+              const s = window.location.search;
+              const m = h.match(/^#job-(.+)$/) || s.match(/[?&]job=([^&]+)/);
+              if (m) {
+                const raw = m[1];
+                const clean = raw.replace(/^job-job-/, "job-");
+                const bare = clean.replace(/^job-/, "");
+                const matched = mapped.find((p: any) => {
+                  const sid = String(p.id);
+                  return sid === clean || sid === raw || sid === `job-${bare}` || sid === bare || sid.includes(bare);
+                });
+                if (matched) {
+                  setSelectedJob(matched);
+                  setEntryGateOpen(false);
+                  setProfileGateOpen(false);
+                  setEmployerGateOpen(false);
+                  setShowBackToStart(true);
+                }
+              }
+            }
           }
         }
       } catch (e) {
@@ -747,7 +814,7 @@ export default function HomePage() {
               const firestoreJobs: JobItem[] = snap.docs.map((doc) => {
                 const d = doc.data();
                 return {
-                  id: doc.id,
+                  id: d.id || doc.id,
                   icon: d.icon || (d.isSponsored ? "⭐" : d.type?.includes("Same-Day") ? "⚡" : "💼"),
                   title: d.title || "Untitled Position",
                   company: d.company || "Community Business",
@@ -769,6 +836,29 @@ export default function HomePage() {
                 const remaining = prev.filter(p => !seen.has(`${p.title.trim().toLowerCase()}|${p.company.trim().toLowerCase()}`));
                 return [...firestoreJobs, ...remaining];
               });
+
+              // Automatically check if URL hash has a direct job to open
+              if (typeof window !== "undefined") {
+                const h = window.location.hash;
+                const s = window.location.search;
+                const m = h.match(/^#job-(.+)$/) || s.match(/[?&]job=([^&]+)/);
+                if (m) {
+                  const raw = m[1];
+                  const clean = raw.replace(/^job-job-/, "job-");
+                  const bare = clean.replace(/^job-/, "");
+                  const matched = firestoreJobs.find(p => {
+                    const sid = String(p.id);
+                    return sid === clean || sid === raw || sid === `job-${bare}` || sid === bare || sid.includes(bare);
+                  });
+                  if (matched) {
+                    setSelectedJob(matched);
+                    setEntryGateOpen(false);
+                    setProfileGateOpen(false);
+                    setEmployerGateOpen(false);
+                    setShowBackToStart(true);
+                  }
+                }
+              }
             }
           },
           (err) => {
@@ -991,7 +1081,16 @@ export default function HomePage() {
   };
 
   const handleChooseBrowseAll = () => {
-    window.location.href = "/jobs";
+    dismissEntryGate("#jobs");
+    setProfileGateOpen(false);
+    setTypeFilter("");
+    setQuickCat("");
+    setCategoryFilter("");
+    setCountryFilter("");
+    setPayFilter("0");
+    setTimeout(() => {
+      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const handleChooseHiring = (source: "front" | "jobs" = "front") => {
@@ -3700,14 +3799,14 @@ export default function HomePage() {
                             >
                               Apply Now
                             </button>
-                            <Link
-                              href={`/jobs/${String(j.id).replace(/^job-job-/, "job-")}`}
+                            <button
+                              type="button"
                               className="btn btn-light job-action-btn"
                               id={`viewJobBtn-${j.id}`}
-                              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                              onClick={() => setSelectedJob(j)}
                             >
                               View Details
-                            </Link>
+                            </button>
                             <button
                               type="button"
                               className={`btn ${savedJobs.includes(j.id) ? "btn-warning" : "btn-light"} job-action-btn`}

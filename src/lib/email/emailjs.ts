@@ -91,9 +91,9 @@ export async function sendJobAlertEmail(params: SendEmailAlertParams): Promise<S
   }
 
   const cleanJobId = params.job.id.replace(/^job-job-/, "job-");
-  const jobUrl = `${baseUrl}/jobs/${cleanJobId}`;
-  const preferencesUrl = `${baseUrl}/jobs#job-alerts`;
-  const unsubscribeUrl = `${baseUrl}/jobs#unsubscribe`;
+  const jobUrl = `${baseUrl}/#job-${cleanJobId}`;
+  const preferencesUrl = `${baseUrl}/#job-alerts`;
+  const unsubscribeUrl = `${baseUrl}/#unsubscribe`;
 
   const payload = {
     service_id: serviceId,
