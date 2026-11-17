@@ -9,12 +9,9 @@ export default function JobRedirectPage() {
   useEffect(() => {
     const rawId = Array.isArray(params?.id) ? params.id[0] : (params?.id as string) || "";
     const cleanId = rawId.replace(/^job-job-/, "job-");
-    window.location.replace(`/jobs#${cleanId.startsWith("job-") ? cleanId : "job-" + cleanId}`);
+    const fullId = cleanId.startsWith("job-") ? cleanId : `job-${cleanId}`;
+    window.location.replace(`/#${fullId}`);
   }, [params?.id]);
 
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fbfa", fontFamily: "sans-serif" }}>
-      <p style={{ color: "#081c3b", fontWeight: 700 }}>Opening job details...</p>
-    </div>
-  );
+  return null;
 }
