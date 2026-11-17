@@ -253,6 +253,7 @@ function JobsDirectoryContent() {
   // Filter States
   const [searchInput, setSearchInput] = useState(searchParams?.get("q") || "");
   const [locationSearch, setLocationSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(searchParams?.get("category") || "");
   const [payFilter, setPayFilter] = useState("0");
   const [typeFilter, setTypeFilter] = useState("");
@@ -609,7 +610,7 @@ function JobsDirectoryContent() {
   // Filter & Sort Jobs (Featured always on top!)
   const filteredJobs = useMemo(() => {
     const q = searchInput.toLowerCase().trim();
-    const loc = locationSearch.toLowerCase().trim();
+    const loc = (locationFilter || locationSearch).toLowerCase().trim();
     const min = Number(payFilter);
 
     const result = jobsList.filter((j) => {
@@ -630,12 +631,23 @@ function JobsDirectoryContent() {
       if (!a.isSponsored && b.isSponsored) return 1;
       return 0;
     });
-  }, [jobsList, searchInput, locationSearch, payFilter, typeFilter, categoryFilter, viewSavedOnly, savedJobs]);
+  }, [jobsList, searchInput, locationSearch, locationFilter, payFilter, typeFilter, categoryFilter, viewSavedOnly, savedJobs]);
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setLocationSearch("");
+    setLocationFilter("");
+    setCategoryFilter("");
+    setPayFilter("0");
+    setTypeFilter("");
+    setViewSavedOnly(false);
+    setCurrentPage(1);
+  };
 
   // Reset to page 1 whenever any search or filter criteria changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchInput, locationSearch, categoryFilter, payFilter, typeFilter, viewSavedOnly]);
+  }, [searchInput, locationSearch, locationFilter, categoryFilter, payFilter, typeFilter, viewSavedOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredJobs.length / ITEMS_PER_PAGE));
 
@@ -1047,7 +1059,84 @@ function JobsDirectoryContent() {
               </div>
             </div>
 
-            {/* All Jobs vs Saved Jobs Switcher */}
+            {/* Jobs Layout: Left Filters Sidebar + Right Jobs Listings */}
+            <div className="jobs-layout">
+              <aside className="panel filters">
+                <h3>Filters</h3>
+                <div className="field">
+                  <label>Location / Area</label>
+                  <DropdownWithCustom
+                    id="locationFilter"
+                    value={locationFilter}
+                    onChange={setLocationFilter}
+                    options={[
+                      "Brooklyn, NY",
+                      "Lakewood, NJ",
+                      "Monsey, NY",
+                      "Five Towns, NY",
+                      "Passaic, NJ",
+                      "Crown Heights, NY",
+                      "Williamsburg, NY",
+                      "Boro Park, NY",
+                      "Jerusalem",
+                      "Tel Aviv",
+                      "London, UK",
+                      "Remote"
+                    ]}
+                    allowEmpty
+                    emptyLabel="All locations"
+                    customPlaceholder="Type city, state, or neighborhood..."
+                  />
+                </div>
+                <div className="field">
+                  <label>Preferred pay</label>
+                  <DropdownWithCustom
+                    id="payFilter"
+                    value={payFilter}
+                    onChange={setPayFilter}
+                    options={[
+                      { value: "0", label: "Any pay" },
+                      { value: "18", label: "$18+ / hr" },
+                      { value: "20", label: "$20+ / hr" },
+                      { value: "25", label: "$25+ / hr" },
+                      { value: "30", label: "$30+ / hr" },
+                      { value: "35", label: "$35+ / hr" },
+                      { value: "40", label: "$40+ / hr" },
+                    ]}
+                    customPlaceholder="Enter min pay (e.g. 45)..."
+                  />
+                </div>
+                <div className="field">
+                  <label>Job Type</label>
+                  <DropdownWithCustom
+                    id="typeFilter"
+                    value={typeFilter}
+                    onChange={setTypeFilter}
+                    options={[
+                      "Full-time",
+                      "Part-time",
+                      "Same-Day Gig",
+                      "Temporary",
+                      "Contract",
+                      "Internship"
+                    ]}
+                    allowEmpty
+                    emptyLabel="All job types"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  style={{ width: "100%" }}
+                  id="clearFilters"
+                  onClick={handleClearFilters}
+                >
+                  Clear Filters
+                </button>
+              </aside>
+
+              <div>
+                {/* All Jobs vs Saved Jobs Switcher */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "14px" }}>
               <div style={{ display: "inline-flex", background: "#f1f5f9", borderRadius: "10px", padding: "3px" }}>
                 <button
@@ -1204,14 +1293,7 @@ function JobsDirectoryContent() {
                   <button
                     type="button"
                     className="btn btn-light"
-                    onClick={() => {
-                      setSearchInput("");
-                      setLocationSearch("");
-                      setCategoryFilter("");
-                      setPayFilter("0");
-                      setTypeFilter("");
-                      setViewSavedOnly(false);
-                    }}
+                    onClick={handleClearFilters}
                     style={{ marginTop: "12px" }}
                   >
                     Clear All Filters
@@ -1222,6 +1304,8 @@ function JobsDirectoryContent() {
 
             {/* Bottom Pagination */}
             {renderPagination("bottom")}
+              </div>
+            </div>
           </div>
         </section>
       </main>
