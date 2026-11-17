@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { updateJob, getJobById, findMatchingAlerts } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
-import { sendJobAlertNotification } from "@/lib/sms/twilio";
+import { sendJobAlertEmail } from "@/lib/email/emailjs";
 
 export async function POST(req: Request) {
   try {
@@ -52,18 +52,21 @@ export async function POST(req: Request) {
         });
 
         for (const alert of matchingAlerts) {
-          await sendJobAlertNotification({
-            to: alert.phone,
+          if (!alert.email) continue;
+          await sendJobAlertEmail({
+            to: alert.email,
             recipientName: alert.name,
             job: {
               id: job.id,
               title: job.title,
               company: job.company,
               category: job.category,
+              jobType: job.jobType,
               location: job.neighborhood || job.location,
               payText: job.payText,
               salaryDisplay: job.salaryDisplay,
               pay: job.pay || job.salaryMin,
+              description: job.description,
             },
             baseUrl,
           });

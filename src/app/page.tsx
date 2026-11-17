@@ -346,24 +346,26 @@ export default function HomePage() {
           interests: profileInterests.length > 0 ? profileInterests : undefined,
           minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
           schedule: profileSchedule || undefined,
+          emailAlerts: profileEmailAlerts,
           smsAlerts: profileSmsAlerts,
         });
         if (!res.success) {
           setAuthError(res.error || "Failed to create account. Please try again.");
         } else {
-          // If seeker provided a phone number during signup, register SMS job alerts for their interests
-          if (authRole === "SEEKER" && effectivePhone.replace(/\D/g, "").length >= 7 && profileSmsAlerts) {
+          // If seeker provided an email during signup, register email job alerts for their interests
+          const effectiveEmail = authEmail.trim() || profileEmail.trim();
+          if (authRole === "SEEKER" && effectiveEmail && effectiveEmail.includes("@") && profileEmailAlerts) {
             fetch("/api/alerts", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                phone: effectivePhone,
+                email: effectiveEmail,
+                phone: effectivePhone || undefined,
                 name: authName.trim(),
                 categories: profileInterests,
                 locations: effectiveLocation ? [effectiveLocation] : profileCountry ? [profileCountry] : [],
                 neighborhood: effectiveLocation,
                 minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
-                sendWelcomeSms: !profilePhone.trim(), // send welcome SMS if not already sent in step 2
               }),
             }).catch((err) => console.warn("Alert sync on signup:", err));
           }
@@ -418,8 +420,9 @@ export default function HomePage() {
     showToast("Signed out successfully.");
   };
 
-  // SMS Job Alerts Modal State
+  // Email Job Alerts Modal State
   const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertEmail, setAlertEmail] = useState("");
   const [alertPhone, setAlertPhone] = useState("");
   const [alertName, setAlertName] = useState("");
   const [alertCategories, setAlertCategories] = useState<string[]>([]);
@@ -510,7 +513,9 @@ export default function HomePage() {
   const [profileInterests, setProfileInterests] = useState<string[]>([]);
   const [profileSchedule, setProfileSchedule] = useState("");
   const [profileMinPay, setProfileMinPay] = useState("0");
+  const [profileEmail, setProfileEmail] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
+  const [profileEmailAlerts, setProfileEmailAlerts] = useState(true);
   const [profileSmsAlerts, setProfileSmsAlerts] = useState(true);
   const [interestSearchQuery, setInterestSearchQuery] = useState("");
   const [profileSummary, setProfileSummary] = useState<{ show: boolean; text: string }>({
@@ -757,7 +762,9 @@ export default function HomePage() {
       if (!resumeFullName && user.name) setResumeFullName(user.name);
       if (!resumeEmail && user.email) setResumeEmail(user.email);
       if (!resumePhone && user.phone) setResumePhone(user.phone);
+      if (!profileEmail && user.email) setProfileEmail(user.email);
       if (!profilePhone && user.phone) setProfilePhone(user.phone);
+      if (!alertEmail && user.email) setAlertEmail(user.email);
       if (!alertPhone && user.phone) setAlertPhone(user.phone);
       if (!alertName && user.name) setAlertName(user.name);
     }
@@ -994,27 +1001,26 @@ export default function HomePage() {
     if (profileSchedule) setTypeFilter(profileSchedule);
     if (profileInterests.length === 1) setCategoryFilter(profileInterests[0]);
 
-    // If seeker entered a phone number (or has one on their account) and opted in for SMS alerts, subscribe them!
-    const phoneToUse = profilePhone.trim() || user?.phone || "";
-    const cleanPhone = phoneToUse.replace(/\D/g, "");
-    if (cleanPhone.length >= 7 && profileSmsAlerts) {
+    // If seeker entered an email (or has one on their account) and opted in for Email alerts, subscribe them!
+    const emailToUse = profileEmail.trim() || user?.email || "";
+    if (emailToUse && emailToUse.includes("@") && profileEmailAlerts) {
       fetch("/api/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: phoneToUse,
+          email: emailToUse,
+          phone: profilePhone.trim() || user?.phone || undefined,
           name: user?.name || profileStage || "Job Seeker",
           categories: profileInterests,
           locations: profileLocation ? [profileLocation] : profileCountry ? [profileCountry] : [],
           neighborhood: profileLocation,
           minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
-          sendWelcomeSms: true,
         }),
       })
         .then(r => r.json())
         .then(data => {
           if (data.success) {
-            showToast("✓ SMS Job Alerts activated! Confirmation text sent.");
+            showToast("✓ Email Job Alerts activated! We will email you when matching jobs are posted.");
           }
         })
         .catch(err => console.error("Error subscribing to alerts:", err));
@@ -1044,7 +1050,7 @@ export default function HomePage() {
     );
   };
 
-  // SMS Alert Modal Handlers
+  // Email Alert Modal Handlers
   const toggleAlertCategory = (cat: string) => {
     setAlertCategories(prev =>
       prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
@@ -1054,9 +1060,9 @@ export default function HomePage() {
   const handleSubmitAlertModal = async (e: React.FormEvent) => {
     e.preventDefault();
     setAlertError("");
-    const clean = alertPhone.trim().replace(/\D/g, "");
-    if (!clean || clean.length < 7 || clean.length > 15) {
-      setAlertError("Please enter a valid phone number (at least 7 digits, e.g. 732-555-0199 or international format).");
+    const cleanEmail = alertEmail.trim();
+    if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      setAlertError("Please enter a valid email address (e.g. name@example.com).");
       return;
     }
 
@@ -1066,20 +1072,19 @@ export default function HomePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: alertPhone,
+          email: cleanEmail,
+          phone: alertPhone || undefined,
           name: alertName,
           categories: alertCategories.length > 0 ? alertCategories : [],
           locations: alertLocation ? [alertLocation] : [],
           neighborhood: alertLocation,
           minPay: alertMinPay !== "0" ? Number(alertMinPay) : undefined,
-          sendWelcomeSms: true,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setAlertIsSimulated(Boolean(data.welcomeSms?.simulated));
         setAlertSuccess(true);
-        showToast("✓ SMS Alert activated!");
+        showToast("✓ Email Job Alerts activated!");
       } else {
         setAlertError(data.error || "Could not register alert. Please try again.");
       }
@@ -1243,7 +1248,7 @@ export default function HomePage() {
       }).catch(err => console.warn("Firestore load error:", err));
     }
 
-    // Dispatch matching SMS job alerts immediately
+    // Dispatch matching Email job alerts immediately
     fetch("/api/alerts/notify-match", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1253,7 +1258,7 @@ export default function HomePage() {
       .then(res => {
         if (res.matchedCount > 0) {
           setTimeout(() => {
-            showToast(`⚡ Dispatched SMS job alerts to ${res.matchedCount} matching candidate${res.matchedCount > 1 ? "s" : ""}!`);
+            showToast(`⚡ Dispatched Email job alerts to ${res.matchedCount} matching candidate${res.matchedCount > 1 ? "s" : ""}!`);
           }, 1200);
         }
       })
@@ -1546,7 +1551,7 @@ export default function HomePage() {
                         setProfileGender(val);
                         if (val === "Male" && (profileStage === "Girl" || profileStage === "Woman")) {
                           setProfileStage("");
-                        } else if (val === "Female" && (profileStage === "Bochur" || profileStage === "Yungerman" || profileStage === "Man")) {
+                        } else if (val === "Female" && (profileStage === "Bochur" || profileStage === "Yungerman")) {
                           setProfileStage("");
                         }
                       }}
@@ -1584,7 +1589,6 @@ export default function HomePage() {
                         <>
                           <option value="Bochur">Bochur</option>
                           <option value="Yungerman">Yungerman</option>
-                          <option value="Man">Man</option>
                         </>
                       )}
                       {profileGender === "Female" && (
@@ -1840,34 +1844,34 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Instant SMS Job Alert Opt-in */}
+                {/* Instant Email Job Alert Opt-in */}
                 <div style={{ marginTop: "18px", padding: "16px", borderRadius: "14px", background: "rgba(30, 114, 200, 0.05)", border: "1px solid rgba(30, 114, 200, 0.18)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", color: "#092040", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "18px" }}>📱</span>
-                    <span>Get Instant SMS Job Alerts (Optional)</span>
+                    <span style={{ fontSize: "18px" }}>📧</span>
+                    <span>Get Instant Email Job Alerts (Optional)</span>
                   </div>
                   <p style={{ fontSize: "13px", color: "#546a7b", margin: "0 0 10px", lineHeight: "1.4" }}>
-                    Be the first to hear about new jobs matching your interests. We will text you the second one is posted!
+                    Be the first to hear about new jobs matching your interests. We will email you the second one is posted!
                   </p>
                   <div className="field" style={{ marginBottom: "8px" }}>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155" }}>Your Mobile Number</label>
+                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155" }}>Your Email Address</label>
                     <input
-                      id="profilePhone"
-                      type="tel"
-                      placeholder="(732) 555-0199"
-                      value={profilePhone}
-                      onChange={e => setProfilePhone(e.target.value)}
+                      id="profileEmail"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={profileEmail}
+                      onChange={e => setProfileEmail(e.target.value)}
                       style={{ background: "#fff", fontSize: "15px" }}
                     />
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#334155", cursor: "pointer", marginTop: "6px" }}>
                     <input
                       type="checkbox"
-                      checked={profileSmsAlerts}
-                      onChange={e => setProfileSmsAlerts(e.target.checked)}
+                      checked={profileEmailAlerts}
+                      onChange={e => setProfileEmailAlerts(e.target.checked)}
                       style={{ width: "16px", height: "16px", accentColor: "#1e72c8" }}
                     />
-                    <span>Text me when new matching jobs are published</span>
+                    <span>Email me when new matching jobs are published</span>
                   </label>
                 </div>
 
@@ -1933,20 +1937,51 @@ export default function HomePage() {
           </div>
 
           <div className="employer-card employer-single-card">
-            <div className="employer-intro" style={{ marginBottom: "24px" }}>
+            {/* Multi-Step Stepper Navigation */}
+            <div className="employer-steps-nav">
+              {[
+                { num: 1, label: "Role & Basics" },
+                { num: 2, label: "Location & Pay" },
+                { num: 3, label: "Requirements" },
+                { num: 4, label: "Contact" },
+                { num: 5, label: "Publish" },
+              ].map((s) => (
+                <div
+                  key={s.num}
+                  className={`employer-step-indicator ${employerStep === s.num ? "active" : employerStep > s.num ? "completed" : ""}`}
+                  onClick={() => {
+                    if (s.num < employerStep) setEmployerStep(s.num);
+                  }}
+                >
+                  <span className="step-circle">{employerStep > s.num ? "✓" : s.num}</span>
+                  <span className="step-label">{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="employer-intro" style={{ marginBottom: "20px" }}>
               <div>
-                <span className="privacy-chip">💼 Post a Job · Direct & Verified</span>
-                <h2 id="employerTitle" style={{ fontSize: "28px", marginTop: "8px", fontWeight: 900, color: "#0d2c38" }}>
-                  What are you hiring for?
+                <span className="privacy-chip">💼 Step {employerStep} of 5 · Direct & Verified</span>
+                <h2 id="employerTitle" style={{ fontSize: "26px", marginTop: "8px", fontWeight: 900, color: "#0d2c38" }}>
+                  {employerStep === 1 && "What are you hiring for?"}
+                  {employerStep === 2 && "Where and how will they work?"}
+                  {employerStep === 3 && "Candidate qualifications & requirements"}
+                  {employerStep === 4 && "Contact & inquiry details"}
+                  {employerStep === 5 && "Review & choose listing plan"}
                 </h2>
                 <p className="profile-lead" style={{ margin: "4px 0 0", color: "#5d7279" }}>
-                  Fill out the job details below on this single page. Your listing publishes directly to local candidates.
+                  {employerStep === 1 && "Start with the job title, category, and basic responsibilities."}
+                  {employerStep === 2 && "Set the work arrangement, location, schedule, and compensation."}
+                  {employerStep === 3 && "Specify the qualifications, experience, and skills you require."}
+                  {employerStep === 4 && "Provide the contact person and method for applicant inquiries."}
+                  {employerStep === 5 && "Review your listing and choose your preferred listing plan to go live."}
                 </p>
               </div>
-              <span className="time-badge">⚡ Takes ~2 minutes</span>
+              <span className="time-badge">⚡ Step {employerStep} / 5</span>
             </div>
 
             {/* SECTION 1: BUSINESS & ROLE */}
+            {employerStep === 1 && (
             <div className="employer-section-block">
               <div className="employer-section-header">
                 <span className="sicon">🏢</span>
@@ -2197,9 +2232,23 @@ export default function HomePage() {
                   ></textarea>
                 </div>
               </div>
+
+              <div className="employer-nav-actions">
+                <div></div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleEmployerNext1}
+                  style={{ padding: "12px 26px", fontSize: "15px", fontWeight: 800 }}
+                >
+                  Next: Location & Pay →
+                </button>
+              </div>
             </div>
+            )}
 
             {/* SECTION 2: WORK SETUP, SAME-DAY HIRING & PAY */}
+            {employerStep === 2 && (
             <div className="employer-section-block">
               <div className="employer-section-header">
                 <span className="sicon">📍</span>
@@ -2443,9 +2492,29 @@ export default function HomePage() {
                   })}
                 </div>
               </div>
+
+              <div className="employer-nav-actions">
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={() => setEmployerStep(1)}
+                >
+                  ← Back to Basics
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleEmployerNext2}
+                  style={{ padding: "12px 26px", fontSize: "15px", fontWeight: 800 }}
+                >
+                  Next: Requirements →
+                </button>
+              </div>
             </div>
+            )}
 
             {/* SECTION 3: CANDIDATE QUALIFICATIONS */}
+            {employerStep === 3 && (
             <div className="employer-section-block">
               <div className="employer-section-header">
                 <span className="sicon">🎯</span>
@@ -2607,9 +2676,29 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
+
+              <div className="employer-nav-actions">
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={() => setEmployerStep(2)}
+                >
+                  ← Back to Setup & Pay
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleEmployerNext3}
+                  style={{ padding: "12px 26px", fontSize: "15px", fontWeight: 800 }}
+                >
+                  Next: Contact Details →
+                </button>
+              </div>
             </div>
+            )}
 
             {/* SECTION 4: CONTACT & INQUIRIES */}
+            {employerStep === 4 && (
             <div className="employer-section-block">
               <div className="employer-section-header">
                 <span className="sicon">📬</span>
@@ -2667,10 +2756,55 @@ export default function HomePage() {
                   />
                 </div>
               </div>
+
+              <div className="employer-nav-actions">
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={() => setEmployerStep(3)}
+                >
+                  ← Back to Requirements
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleEmployerNext4}
+                  style={{ padding: "12px 26px", fontSize: "15px", fontWeight: 800 }}
+                >
+                  Next: Review & Pricing Plans →
+                </button>
+              </div>
             </div>
+            )}
 
             {/* SECTION 5: PUBLISH & PRICING PLANS */}
+            {employerStep === 5 && (
             <div className="employer-section-block" style={{ border: "2px solid #b5d5f5", background: "#f8fbff", borderRadius: "16px", padding: "24px" }}>
+              <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={() => setEmployerStep(4)}
+                  style={{ fontSize: "13px" }}
+                >
+                  ← Back to Edit Contact
+                </button>
+                <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 700 }}>Final Step</span>
+              </div>
+
+              {/* Review summary preview */}
+              <div style={{ background: "#ffffff", border: "1.5px solid #cbd5e1", borderRadius: "12px", padding: "14px 18px", marginBottom: "18px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", marginBottom: "4px" }}>
+                  Listing Preview
+                </div>
+                <div style={{ fontSize: "18px", fontWeight: 850, color: "#092040" }}>
+                  {empTitle || "Job Title"} · <span style={{ color: "#1e72c8" }}>{empCompany || "Company"}</span>
+                </div>
+                <div style={{ fontSize: "13.5px", color: "#475569", marginTop: "4px" }}>
+                  📍 {empLocation || "Location"}, {empCountry || "Country"} &nbsp;·&nbsp; 💰 {empPayRate || empPayMin || "Pay specified"} &nbsp;·&nbsp; 🏷️ {empCategory || "Category"}
+                </div>
+              </div>
+
               <div className="employer-section-header" style={{ borderBottom: "none", paddingBottom: "8px" }}>
                 <span className="sicon">🚀</span>
                 <div>
@@ -2830,6 +2964,7 @@ export default function HomePage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -3094,7 +3229,7 @@ export default function HomePage() {
                           <span className="item-icon">🔑</span>
                           <div>
                             <div className="item-title" style={{ color: "#1e72c8" }}>Sign In / Register</div>
-                            <div className="item-sub">Sync applications and SMS alerts</div>
+                            <div className="item-sub">Sync applications and email alerts</div>
                           </div>
                         </button>
                       </div>
@@ -3839,7 +3974,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Instant SMS Job Alert Modal */}
+      {/* Instant Email Job Alert Modal */}
       {alertModalOpen && (
         <div
           className="modal open"
@@ -3853,8 +3988,8 @@ export default function HomePage() {
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span style={{ fontSize: "24px" }}>🔔</span>
                 <div>
-                  <strong style={{ fontSize: "18px", color: "#092040" }}>Instant SMS Job Alerts</strong>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>Get texted the second matching jobs are posted</div>
+                  <strong style={{ fontSize: "18px", color: "#092040" }}>Instant Email Job Alerts</strong>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>Get emailed the second matching jobs are posted</div>
                 </div>
               </div>
               <button
@@ -3874,20 +4009,8 @@ export default function HomePage() {
                   </div>
                   <h3 style={{ fontSize: "22px", color: "#092040", marginBottom: "8px" }}>Alerts Activated!</h3>
                   <p style={{ color: "#475569", lineHeight: "1.5", fontSize: "15px", maxWidth: "420px", margin: "0 auto 16px" }}>
-                    We have registered <b>{alertPhone}</b>. You will receive an instant text notification whenever a matching job is published!
+                    We have registered <b>{alertEmail}</b>. You will receive an instant email notification whenever a matching job is published!
                   </p>
-
-                  {alertIsSimulated && (
-                    <div style={{ margin: "18px 0 24px", padding: "14px 16px", background: "#f0f7ff", borderRadius: "12px", border: "1px solid #bfdbfe", textAlign: "left", fontSize: "13px", color: "#1e3a8a" }}>
-                      <div style={{ fontWeight: "700", display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                        <span>📱</span>
-                        <span>Twilio Credentials Pending (Simulation Mode)</span>
-                      </div>
-                      <p style={{ margin: 0, color: "#334155", lineHeight: "1.45" }}>
-                        Your alert subscription is active in the database! Because Twilio API keys haven&apos;t been provided yet, simulated SMS messages are logged to the server terminal. Once you add <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: "4px" }}>TWILIO_ACCOUNT_SID</code> and <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: "4px" }}>TWILIO_AUTH_TOKEN</code> to <code style={{ background: "#e2e8f0", padding: "1px 4px", borderRadius: "4px" }}>.env.local</code>, real text messages will deliver directly to your phone.
-                      </p>
-                    </div>
-                  )}
 
                   <button
                     type="button"
@@ -3909,22 +4032,22 @@ export default function HomePage() {
 
                   <div className="field" style={{ marginBottom: "16px" }}>
                     <label style={{ fontWeight: "700", color: "#092040" }}>
-                      Cell Phone Number <span className="required-star">*</span>
+                      Email Address <span className="required-star">*</span>
                     </label>
                     <input
-                      id="alertPhoneInput"
-                      type="tel"
+                      id="alertEmailInput"
+                      type="email"
                       required
-                      placeholder="(732) 555-0199"
-                      value={alertPhone}
+                      placeholder="you@example.com"
+                      value={alertEmail}
                       onChange={e => {
-                        setAlertPhone(e.target.value);
+                        setAlertEmail(e.target.value);
                         if (alertError) setAlertError("");
                       }}
                       style={{ fontSize: "16px", padding: "12px 14px" }}
                     />
                     <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
-                      We only send SMS for jobs that match your preferences. Reply STOP anytime.
+                      We only send emails for jobs matching your preferences. Unsubscribe anytime with one click.
                     </div>
                   </div>
 
@@ -4006,7 +4129,7 @@ export default function HomePage() {
                       disabled={alertSubmitting}
                       style={{ minWidth: "190px" }}
                     >
-                      {alertSubmitting ? "Activating..." : "🔔 Turn On SMS Alerts"}
+                      {alertSubmitting ? "Activating..." : "🔔 Turn On Email Alerts"}
                     </button>
                   </div>
                 </form>
@@ -4774,7 +4897,7 @@ export default function HomePage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>
-                  <span><strong>Automatic SMS Match Alerts</strong> dispatched to candidates immediately upon publishing.</span>
+                  <span><strong>Automatic Email Match Alerts</strong> dispatched to candidates immediately upon publishing.</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>

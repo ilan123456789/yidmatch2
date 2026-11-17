@@ -30,6 +30,7 @@ interface AuthContextType {
     minPay?: number;
     schedule?: string;
     smsAlerts?: boolean;
+    emailAlerts?: boolean;
   }) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: (role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -192,6 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     minPay?: number;
     schedule?: string;
     smsAlerts?: boolean;
+    emailAlerts?: boolean;
   }): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
     if (!data.email.trim() || !data.pass || !data.name.trim()) {
@@ -243,6 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         minPay: data.minPay,
         schedule: data.schedule || undefined,
         smsAlerts: data.smsAlerts !== undefined ? data.smsAlerts : true,
+        emailAlerts: data.emailAlerts !== undefined ? data.emailAlerts : true,
         createdAt: new Date().toISOString()
       };
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJobs, getAllEmployerJobs, createJob, findMatchingAlerts } from "@/lib/db";
 import { createJobPostingCheckoutSession } from "@/lib/stripe";
-import { sendJobAlertNotification } from "@/lib/sms/twilio";
+import { sendJobAlertEmail } from "@/lib/email/emailjs";
 import { formatDbDate } from "@/lib/date-utils";
 import { Job } from "@/types";
 
@@ -124,9 +124,9 @@ export async function POST(req: Request) {
 
     await createJob(newJob);
 
-    // Automatically send Twilio SMS notifications to all matching people with interest (unless caller dispatches via /api/alerts/notify-match)
+    // Automatically send Email notifications to all matching people with interest (unless caller dispatches via /api/alerts/notify-match)
     let alertsSentCount = 0;
-    if (!body.skipSmsAlerts) {
+    if (!body.skipAlerts && !body.skipSmsAlerts) {
       try {
         const matchingAlerts = await findMatchingAlerts({
           title: newJob.title,
@@ -139,8 +139,9 @@ export async function POST(req: Request) {
         });
 
         for (const alert of matchingAlerts) {
-          const smsRes = await sendJobAlertNotification({
-            to: alert.phone,
+          if (!alert.email) continue;
+          const emailRes = await sendJobAlertEmail({
+            to: alert.email,
             recipientName: alert.name,
             job: {
               id: newJob.id,
@@ -148,18 +149,20 @@ export async function POST(req: Request) {
               company: newJob.company,
               location: newJob.location || newJob.neighborhood,
               category: newJob.category,
+              jobType: newJob.jobType,
               payText: newJob.payText,
               salaryDisplay: newJob.salaryDisplay,
               pay: newJob.pay || newJob.salaryMin,
+              description: newJob.description,
             },
             baseUrl,
           });
-          if (smsRes.success) {
+          if (emailRes.success) {
             alertsSentCount++;
           }
         }
-      } catch (smsErr) {
-        console.warn("[POST /api/jobs] SMS alert dispatch error:", smsErr);
+      } catch (alertErr) {
+        console.warn("[POST /api/jobs] Email alert dispatch error:", alertErr);
       }
     }
 

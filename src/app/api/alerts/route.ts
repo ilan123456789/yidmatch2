@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createJobAlert, getJobAlerts } from "@/lib/db";
-import { sendWelcomeAlertNotification, normalizePhoneNumber } from "@/lib/sms/twilio";
+import { normalizeEmail, isValidEmail } from "@/lib/email/emailjs";
 
 export async function GET() {
   try {
@@ -10,6 +10,7 @@ export async function GET() {
       count: alerts.length,
       alerts: alerts.map((a) => ({
         id: a.id,
+        email: a.email,
         phone: a.phone,
         name: a.name,
         categories: a.categories,
@@ -26,16 +27,14 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { phone, name, categories, locations, neighborhood, minPay, sendWelcomeSms = true } = body;
+    const { email, phone, name, categories, locations, neighborhood, minPay } = body;
 
-    if (!phone || typeof phone !== "string" || phone.trim().length < 7) {
-      return NextResponse.json({ error: "A valid phone number is required for SMS job alerts" }, { status: 400 });
+    const emailCandidate = email || (typeof phone === "string" && phone.includes("@") ? phone : "");
+    if (!emailCandidate || !isValidEmail(emailCandidate)) {
+      return NextResponse.json({ error: "A valid email address is required for job alerts" }, { status: 400 });
     }
 
-    const normalizedPhone = normalizePhoneNumber(phone);
-    if (!normalizedPhone || normalizedPhone.replace(/\D/g, "").length < 7) {
-      return NextResponse.json({ error: "Please enter a valid phone number (at least 7 digits)" }, { status: 400 });
-    }
+    const normalizedEmail = normalizeEmail(emailCandidate);
 
     const cleanedCategories = Array.isArray(categories)
       ? categories.filter(Boolean)
@@ -54,7 +53,8 @@ export async function POST(req: Request) {
     const parsedMinPay = minPay && !isNaN(Number(minPay)) ? Number(minPay) : undefined;
 
     const alert = await createJobAlert({
-      phone: normalizedPhone,
+      email: normalizedEmail,
+      phone: phone && typeof phone === "string" ? phone.trim() : undefined,
       name: name?.trim() || "",
       categories: cleanedCategories,
       locations: cleanedLocations,
@@ -63,25 +63,10 @@ export async function POST(req: Request) {
       active: true,
     });
 
-    let welcomeResult = null;
-    if (sendWelcomeSms) {
-      try {
-        welcomeResult = await sendWelcomeAlertNotification({
-          to: normalizedPhone,
-          name: name?.trim(),
-          categories: cleanedCategories,
-          location: cleanedLocations[0],
-        });
-      } catch (smsErr) {
-        console.warn("[YidMatch Alerts] Welcome SMS delivery error:", smsErr);
-      }
-    }
-
     return NextResponse.json({
       success: true,
       alert,
-      welcomeSms: welcomeResult,
-      message: "Job alert activated successfully! You will receive text alerts when matching jobs are posted.",
+      message: "Job alert activated successfully! You will receive email alerts when matching jobs are posted.",
     });
   } catch (err: any) {
     console.error("[YidMatch Alerts POST Error]:", err);

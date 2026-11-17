@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { Job, DailyJob, JobApplication, UserProfile, JobAlert } from "@/types";
 import { normalizePhoneNumber } from "@/lib/sms/twilio";
+import { normalizeEmail, isValidEmail } from "@/lib/email/emailjs";
 
 interface DatabaseSchema {
   users: UserProfile[];
@@ -130,13 +131,14 @@ function saveLocalDb(data: DatabaseSchema): void {
 
 async function upsertFirestoreAlert(alert: JobAlert): Promise<void> {
   try {
-    const cleanDigits = alert.phone.replace(/\D/g, "");
-    if (!cleanDigits) return;
-    const docId = `alert_${cleanDigits}`;
+    const normEmail = normalizeEmail(alert.email);
+    if (!normEmail) return;
+    const docId = `alert_${normEmail.replace(/[^a-z0-9]/g, "_")}`;
     const body = {
       fields: {
         id: { stringValue: alert.id },
-        phone: { stringValue: normalizePhoneNumber(alert.phone) },
+        email: { stringValue: normEmail },
+        phone: { stringValue: alert.phone ? normalizePhoneNumber(alert.phone) : "" },
         name: { stringValue: alert.name || "" },
         neighborhood: { stringValue: alert.neighborhood || "" },
         categories: {
@@ -178,8 +180,10 @@ async function fetchFirestoreAlerts(): Promise<JobAlert[]> {
     return data.documents
       .map((doc: any): JobAlert | null => {
         const f = doc.fields || {};
+        const email = normalizeEmail(f.email?.stringValue || f.to_email?.stringValue || "");
         const phone = f.phone?.stringValue || "";
-        if (!phone) return null;
+        if (!email && !phone) return null;
+        const resolvedEmail = email || `${phone.replace(/\D/g, "")}@phone.yidmatch.local`;
         const categories = Array.isArray(f.categories?.arrayValue?.values)
           ? f.categories.arrayValue.values.map((v: any) => v.stringValue).filter(Boolean)
           : [];
@@ -191,7 +195,8 @@ async function fetchFirestoreAlerts(): Promise<JobAlert[]> {
         const minPayNum = Number(f.minPay?.integerValue || f.minPay?.doubleValue || 0);
         return {
           id: f.id?.stringValue || doc.name?.split("/").pop() || "alert",
-          phone: normalizePhoneNumber(phone),
+          email: resolvedEmail,
+          phone: phone ? normalizePhoneNumber(phone) : undefined,
           name: f.name?.stringValue || "",
           categories,
           locations,
@@ -316,10 +321,11 @@ export async function saveUser(user: UserProfile): Promise<UserProfile> {
   }
   saveLocalDb(db);
 
-  // If this user is a SEEKER with a phone number, ensure they have an active JobAlert synced
-  if (user.role === "SEEKER" && user.phone && user.phone.replace(/\D/g, "").length >= 7 && user.smsAlerts !== false) {
+  // If this user is a SEEKER with an email address, ensure they have an active JobAlert synced
+  if (user.role === "SEEKER" && user.email && isValidEmail(user.email) && user.emailAlerts !== false) {
     await createJobAlert({
-      phone: normalizePhoneNumber(user.phone),
+      email: normalizeEmail(user.email),
+      phone: user.phone ? normalizePhoneNumber(user.phone) : undefined,
       name: user.name,
       categories: user.interests || user.categories || [],
       locations: user.location ? [user.location] : [],
@@ -338,74 +344,69 @@ export async function getJobAlerts(): Promise<JobAlert[]> {
   const db = getLocalDb();
   const firestoreAlerts = await fetchFirestoreAlerts();
 
-  const mergedByPhone = new Map<string, JobAlert>();
+  const mergedByEmail = new Map<string, JobAlert>();
 
-  // 1. Add SEEKER users with phone numbers from local DB as baseline subscribers
+  // 1. Add SEEKER users with emails from local DB as baseline subscribers
   for (const user of db.users || []) {
-    if (user.role === "SEEKER" && user.phone && user.smsAlerts !== false) {
-      const normPhone = normalizePhoneNumber(user.phone);
-      const digits = normPhone.replace(/\D/g, "");
-      if (digits.length >= 7) {
-        mergedByPhone.set(digits, {
-          id: `usr-alert-${user.uid}`,
-          phone: normPhone,
-          name: user.name || "",
-          categories: user.interests || user.categories || [],
-          locations: user.location ? [user.location] : [],
-          neighborhood: user.location || "",
-          minPay: user.minPay,
-          active: true,
-          createdAt: user.createdAt || new Date().toISOString(),
-        });
-      }
+    if (user.role === "SEEKER" && user.email && isValidEmail(user.email) && user.emailAlerts !== false) {
+      const normEmail = normalizeEmail(user.email);
+      mergedByEmail.set(normEmail, {
+        id: `usr-alert-${user.uid}`,
+        email: normEmail,
+        phone: user.phone ? normalizePhoneNumber(user.phone) : undefined,
+        name: user.name || "",
+        categories: user.interests || user.categories || [],
+        locations: user.location ? [user.location] : [],
+        neighborhood: user.location || "",
+        minPay: user.minPay,
+        active: true,
+        createdAt: user.createdAt || new Date().toISOString(),
+      });
     }
   }
 
   // 2. Overlay Firestore job_alerts (more specific interest/category preferences)
   for (const fa of firestoreAlerts) {
     if (!fa.active) continue;
-    const normPhone = normalizePhoneNumber(fa.phone);
-    const digits = normPhone.replace(/\D/g, "");
-    if (digits.length >= 7) {
-      const existing = mergedByPhone.get(digits);
-      mergedByPhone.set(digits, {
-        ...existing,
-        ...fa,
-        phone: normPhone,
-        categories: fa.categories && fa.categories.length > 0 ? fa.categories : existing?.categories || [],
-        locations: fa.locations && fa.locations.length > 0 ? fa.locations : existing?.locations || [],
-      });
-    }
+    const normEmail = normalizeEmail(fa.email);
+    if (!normEmail) continue;
+    const existing = mergedByEmail.get(normEmail);
+    mergedByEmail.set(normEmail, {
+      ...existing,
+      ...fa,
+      email: normEmail,
+      categories: fa.categories && fa.categories.length > 0 ? fa.categories : existing?.categories || [],
+      locations: fa.locations && fa.locations.length > 0 ? fa.locations : existing?.locations || [],
+    });
   }
 
   // 3. Overlay local db.jobAlerts (most recent in-process updates)
   for (const la of db.jobAlerts || []) {
     if (!la.active) continue;
-    const normPhone = normalizePhoneNumber(la.phone);
-    const digits = normPhone.replace(/\D/g, "");
-    if (digits.length >= 7) {
-      const existing = mergedByPhone.get(digits);
-      mergedByPhone.set(digits, {
-        ...existing,
-        ...la,
-        phone: normPhone,
-        categories: la.categories && la.categories.length > 0 ? la.categories : existing?.categories || [],
-        locations: la.locations && la.locations.length > 0 ? la.locations : existing?.locations || [],
-      });
-    }
+    const normEmail = normalizeEmail(la.email);
+    if (!normEmail) continue;
+    const existing = mergedByEmail.get(normEmail);
+    mergedByEmail.set(normEmail, {
+      ...existing,
+      ...la,
+      email: normEmail,
+      categories: la.categories && la.categories.length > 0 ? la.categories : existing?.categories || [],
+      locations: la.locations && la.locations.length > 0 ? la.locations : existing?.locations || [],
+    });
   }
 
-  return Array.from(mergedByPhone.values()).filter((a) => a.active);
+  return Array.from(mergedByEmail.values()).filter((a) => a.active);
 }
 
 export async function createJobAlert(
   alertData: Omit<JobAlert, "id" | "createdAt" | "active"> & { active?: boolean }
 ): Promise<JobAlert> {
   const id = "alert-" + Math.random().toString(36).substring(2, 10);
-  const normalizedPhone = normalizePhoneNumber(alertData.phone);
+  const normalizedEmail = normalizeEmail(alertData.email);
   const newAlert: JobAlert = {
     id,
-    phone: normalizedPhone,
+    email: normalizedEmail,
+    phone: alertData.phone ? normalizePhoneNumber(alertData.phone) : undefined,
     name: alertData.name || "",
     categories: alertData.categories || [],
     locations: alertData.locations || (alertData.neighborhood ? [alertData.neighborhood] : []),
@@ -418,8 +419,7 @@ export async function createJobAlert(
   const db = getLocalDb();
   if (!db.jobAlerts) db.jobAlerts = [];
 
-  const cleanNewPhone = normalizedPhone.replace(/\D/g, "");
-  const existingIdx = db.jobAlerts.findIndex((a) => a.phone.replace(/\D/g, "") === cleanNewPhone);
+  const existingIdx = db.jobAlerts.findIndex((a) => normalizeEmail(a.email) === normalizedEmail);
 
   let savedAlert: JobAlert;
   if (existingIdx !== -1) {
@@ -443,7 +443,9 @@ export async function createJobAlert(
   }
 
   // Persist to Firebase Firestore so it is available across all edge workers & devices
-  await upsertFirestoreAlert(savedAlert);
+  upsertFirestoreAlert(savedAlert).catch((err) =>
+    console.warn("[createJobAlert] Failed to upsert to Firestore:", err)
+  );
 
   return savedAlert;
 }

@@ -14,6 +14,7 @@ export interface UserProfile {
   minPay?: number;
   schedule?: string;
   smsAlerts?: boolean;
+  emailAlerts?: boolean;
   subscriptionStatus?: "ACTIVE" | "INACTIVE" | "CANCELED";
   subscriptionPlan?: "UNLIMITED_MONTHLY";
   subscriptionEndsAt?: string;
@@ -101,7 +102,8 @@ export interface JobApplication {
 
 export interface JobAlert {
   id: string;
-  phone: string;
+  email: string;
+  phone?: string;
   name?: string;
   categories: string[];
   locations?: string[];

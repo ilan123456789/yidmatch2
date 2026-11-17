@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDailyJobs, createDailyJob, findMatchingAlerts } from "@/lib/db";
-import { sendJobAlertNotification } from "@/lib/sms/twilio";
+import { sendJobAlertEmail } from "@/lib/email/emailjs";
 import { DailyJob } from "@/types";
 
 export async function GET(req: Request) {
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
     await createDailyJob(newDailyJob);
 
-    // Automatically send Twilio SMS notifications to all matching people
+    // Automatically send Email notifications to all matching people
     let alertsSentCount = 0;
     try {
       const origin = req.headers.get("origin") || req.headers.get("host") || "http://localhost:3000";
@@ -91,8 +91,9 @@ export async function POST(req: Request) {
       });
 
       for (const alert of matchingAlerts) {
-        const smsRes = await sendJobAlertNotification({
-          to: alert.phone,
+        if (!alert.email) continue;
+        const emailRes = await sendJobAlertEmail({
+          to: alert.email,
           recipientName: alert.name,
           job: {
             id: newDailyJob.id,
@@ -100,17 +101,19 @@ export async function POST(req: Request) {
             company: newDailyJob.contactName,
             location: newDailyJob.location,
             category: newDailyJob.category,
+            jobType: "Same-Day / Immediate",
             payText: String(payAmount).includes("$") ? String(payAmount) : `$${payAmount}`,
             pay: numericPay,
+            description: newDailyJob.description,
           },
           baseUrl,
         });
-        if (smsRes.success) {
+        if (emailRes.success) {
           alertsSentCount++;
         }
       }
-    } catch (smsErr) {
-      console.warn("[POST /api/daily-jobs] SMS alert dispatch error:", smsErr);
+    } catch (alertErr) {
+      console.warn("[POST /api/daily-jobs] Email alert dispatch error:", alertErr);
     }
 
     return NextResponse.json({

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { findMatchingAlerts, getJobById } from "@/lib/db";
-import { sendJobAlertNotification } from "@/lib/sms/twilio";
+import { sendJobAlertEmail } from "@/lib/email/emailjs";
 
 export async function POST(req: Request) {
   try {
@@ -30,25 +30,28 @@ export async function POST(req: Request) {
       salaryMin: job.salaryMin,
     });
 
-    console.log(`[YidMatch SMS Dispatcher] Found ${matchingAlerts.length} matching alert subscriptions for job "${job.title}"`);
+    console.log(`[YidMatch Email Dispatcher] Found ${matchingAlerts.length} matching alert subscriptions for job "${job.title}"`);
 
     const dispatchResults = [];
     let sentCount = 0;
 
     for (const alert of matchingAlerts) {
+      if (!alert.email) continue;
       try {
-        const res = await sendJobAlertNotification({
-          to: alert.phone,
+        const res = await sendJobAlertEmail({
+          to: alert.email,
           recipientName: alert.name,
           job: {
             id: job.id,
             title: job.title,
-            company: job.company || "Employer on YidMatch",
+            company: job.company || "Employer on Yid Match",
             location: job.location || job.neighborhood || "Local",
             category: job.category,
+            jobType: job.type || job.jobType || "Full-Time",
             payText: job.payText,
             salaryDisplay: job.salaryDisplay,
             pay: job.pay || job.salaryMin,
+            description: job.description || job.desc,
           },
           baseUrl,
         });
@@ -57,17 +60,15 @@ export async function POST(req: Request) {
           sentCount++;
         }
         dispatchResults.push({
-          phone: alert.phone,
+          email: alert.email,
           name: alert.name,
           success: res.success,
-          simulated: res.simulated,
-          sid: res.sid,
           error: res.error,
         });
       } catch (err: any) {
-        console.error(`[YidMatch SMS Alert] Failed sending to ${alert.phone}:`, err);
+        console.error(`[YidMatch Email Alert] Failed sending to ${alert.email}:`, err);
         dispatchResults.push({
-          phone: alert.phone,
+          email: alert.email,
           name: alert.name,
           success: false,
           error: err.message,
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
       matchedCount: matchingAlerts.length,
       sentCount,
       recipients: dispatchResults,
-      message: `Triggered SMS alerts: ${sentCount} messages sent to matching job seekers.`,
+      message: `Triggered email alerts: ${sentCount} messages sent to matching job seekers.`,
     });
   } catch (err: any) {
     console.error("[YidMatch Alert Match Error]:", err);
