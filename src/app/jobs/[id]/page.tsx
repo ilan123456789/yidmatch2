@@ -10,7 +10,7 @@ export default function JobRedirectPage() {
     const rawId = Array.isArray(params?.id) ? params.id[0] : (params?.id as string) || "";
     const cleanId = rawId.replace(/^job-job-/, "job-");
     const fullId = cleanId.startsWith("job-") ? cleanId : `job-${cleanId}`;
-    window.location.replace(`/#${fullId}`);
+    window.location.replace(`/jobs#${fullId}`);
   }, [params?.id]);
 
   return null;

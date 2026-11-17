@@ -513,60 +513,13 @@ export default function HomePage() {
         const rawTargetId = jobHashMatch ? jobHashMatch[1] : jobParamMatch ? decodeURIComponent(jobParamMatch[1]) : null;
         if (rawTargetId) {
           const cleanTargetId = rawTargetId.replace(/^job-job-/, "job-");
-          const bareId = cleanTargetId.replace(/^job-/, "");
           const fullJobId = cleanTargetId.startsWith("job-") ? cleanTargetId : `job-${cleanTargetId}`;
-
-          setEntryGateOpen(false);
-          setProfileGateOpen(false);
-          setEmployerGateOpen(false);
-          setShowBackToStart(true);
-
-          // Find in existing jobs or fetch directly from API
-          const found = jobsList.find(j => {
-            const sid = String(j.id);
-            return sid === rawTargetId || sid === cleanTargetId || sid === fullJobId || sid === bareId || sid.includes(bareId);
-          });
-
-          if (found) {
-            setSelectedJob(found);
-          } else {
-            fetch(`/api/jobs/${fullJobId}`)
-              .then(r => r.json())
-              .then(data => {
-                if (data.job) {
-                  const fj = data.job;
-                  setSelectedJob({
-                    id: fj.id,
-                    icon: fj.icon || (fj.isSponsored ? "⭐" : "💼"),
-                    title: fj.title,
-                    company: fj.company,
-                    location: fj.location || fj.neighborhood || "Local",
-                    country: fj.country || "United States",
-                    category: fj.category || "General",
-                    type: fj.jobType || "Full-Time",
-                    pay: fj.pay || fj.salaryMin || 0,
-                    payText: fj.payText || fj.salaryDisplay || (fj.pay ? `$${fj.pay}/hr` : "Competitive"),
-                    desc: fj.description || "",
-                    age: "Active",
-                    isSponsored: Boolean(fj.isSponsored),
-                  });
-                }
-              })
-              .catch(err => console.warn("Failed to load direct target job:", err));
-          }
-
-          setTimeout(() => {
-            document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
-          }, 150);
+          window.location.replace(`/jobs#${fullJobId}`);
           return true;
         }
 
         if (hash === "#jobs" || search.includes("view=jobs") || search.includes("page=all-jobs")) {
-          setEntryGateOpen(false);
-          setShowBackToStart(true);
-          setTimeout(() => {
-            document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth" });
-          }, 120);
+          window.location.replace("/jobs");
           return true;
         }
       }
@@ -1081,16 +1034,7 @@ export default function HomePage() {
   };
 
   const handleChooseBrowseAll = () => {
-    dismissEntryGate("#jobs");
-    setProfileGateOpen(false);
-    setTypeFilter("");
-    setQuickCat("");
-    setCategoryFilter("");
-    setCountryFilter("");
-    setPayFilter("0");
-    setTimeout(() => {
-      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    window.location.href = "/jobs";
   };
 
   const handleChooseHiring = (source: "front" | "jobs" = "front") => {
@@ -1221,8 +1165,8 @@ export default function HomePage() {
     });
 
     setTimeout(() => {
-      document.querySelector("#jobs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+      window.location.href = "/jobs";
+    }, 150);
   };
 
   const toggleInterest = (val: string) => {
@@ -3880,7 +3824,7 @@ export default function HomePage() {
             <span>© 2026 YidMatch · Prototype</span>
           </div>
           <div className="foot-links">
-            <a href="#jobs">Jobs</a>
+            <Link href="/jobs">Jobs</Link>
             <a href="#" onClick={(e) => { e.preventDefault(); handleChooseHiring("jobs"); }}>For Employers</a>
             <a href="#" onClick={(e) => { e.preventDefault(); setContactModalOpen(true); }}>💬 Contact Owner</a>
             <Link href="/terms">Terms &amp; Conditions</Link>
