@@ -146,6 +146,58 @@ const EMPLOYER_CATEGORY_OPTIONS = [
   { label: "💡 Other / General", value: "Other" }
 ];
 
+// Complete 24-hour time options with AM and PM for job hours selection
+const HOURS_24_OPTIONS = [
+  "12:00 AM (Midnight)",
+  "12:30 AM",
+  "1:00 AM",
+  "1:30 AM",
+  "2:00 AM",
+  "2:30 AM",
+  "3:00 AM",
+  "3:30 AM",
+  "4:00 AM",
+  "4:30 AM",
+  "5:00 AM",
+  "5:30 AM",
+  "6:00 AM",
+  "6:30 AM",
+  "7:00 AM",
+  "7:30 AM",
+  "8:00 AM",
+  "8:30 AM",
+  "9:00 AM",
+  "9:30 AM",
+  "10:00 AM",
+  "10:30 AM",
+  "11:00 AM",
+  "11:30 AM",
+  "12:00 PM (Noon)",
+  "12:30 PM",
+  "1:00 PM",
+  "1:30 PM",
+  "2:00 PM",
+  "2:30 PM",
+  "3:00 PM",
+  "3:30 PM",
+  "4:00 PM",
+  "4:30 PM",
+  "5:00 PM",
+  "5:30 PM",
+  "6:00 PM",
+  "6:30 PM",
+  "7:00 PM",
+  "7:30 PM",
+  "8:00 PM",
+  "8:30 PM",
+  "9:00 PM",
+  "9:30 PM",
+  "10:00 PM",
+  "10:30 PM",
+  "11:00 PM",
+  "11:30 PM",
+];
+
 function DropdownWithCustom({
   id,
   value,
@@ -537,6 +589,8 @@ export default function HomePage() {
   const [empArrangement, setEmpArrangement] = useState("On-site");
   const [empSchedule, setEmpSchedule] = useState("Full-time");
   const [empHours, setEmpHours] = useState("");
+  const [empStartTime, setEmpStartTime] = useState("9:00 AM");
+  const [empEndTime, setEmpEndTime] = useState("5:00 PM");
   const [empStart, setEmpStart] = useState("As soon as possible");
   const [empStartDate, setEmpStartDate] = useState("");
   const [empDays, setEmpDays] = useState<string[]>([]);
@@ -767,6 +821,13 @@ export default function HomePage() {
       if (!alertEmail && user.email) setAlertEmail(user.email);
       if (!alertPhone && user.phone) setAlertPhone(user.phone);
       if (!alertName && user.name) setAlertName(user.name);
+    }
+    if (typeof window !== "undefined") {
+      const savedEmail = localStorage.getItem("ym_user_email");
+      if (savedEmail) {
+        if (!profileEmail && !user?.email) setProfileEmail(savedEmail);
+        if (!alertEmail && !user?.email) setAlertEmail(savedEmail);
+      }
     }
   }, [user]);
 
@@ -1004,6 +1065,9 @@ export default function HomePage() {
     // If seeker entered an email (or has one on their account) and opted in for Email alerts, subscribe them!
     const emailToUse = profileEmail.trim() || user?.email || "";
     if (emailToUse && emailToUse.includes("@") && profileEmailAlerts) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ym_user_email", emailToUse);
+      }
       fetch("/api/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1024,6 +1088,22 @@ export default function HomePage() {
           }
         })
         .catch(err => console.error("Error subscribing to alerts:", err));
+
+      if (user?.uid) {
+        fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...user,
+            interests: profileInterests,
+            categories: profileInterests,
+            location: profileLocation || user.location,
+            country: profileCountry || user.country,
+            minPay: profileMinPay !== "0" ? Number(profileMinPay) : undefined,
+            schedule: profileSchedule || user.schedule,
+          }),
+        }).catch(err => console.warn("User profile sync warning:", err));
+      }
     }
 
     const summaryParts = [
@@ -1222,7 +1302,8 @@ export default function HomePage() {
         paymentStatus: "PAID",
         isSponsored: Boolean(isSponsored),
         postedAt: formatDbDate(now),
-        skipSmsAlerts: true
+        skipAlerts: false,
+        skipSmsAlerts: false
       }),
     }).catch(err => console.warn("API save warning:", err));
 
@@ -2373,14 +2454,99 @@ export default function HomePage() {
                   />
                 </div>
 
-                <div className="field">
-                  <label>Typical hours (optional)</label>
-                  <input
-                    id="empHours"
-                    placeholder="e.g. 9:00 AM–5:00 PM"
-                    value={empHours}
-                    onChange={e => setEmpHours(e.target.value)}
-                  />
+                <div className="field full-width" style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>
+                      Work hours (optional) <span className="helper" style={{ display: "inline", marginLeft: "6px", fontWeight: "normal" }}>Choose from 24-hour dropdown</span>
+                    </span>
+                    {empHours && (
+                      <span style={{ fontSize: "12px", color: "#1e72c8", fontWeight: "800" }}>
+                        Selected: {empHours}
+                      </span>
+                    )}
+                  </label>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "10px", marginTop: "4px" }}>
+                    <div>
+                      <span style={{ fontSize: "12px", fontWeight: "700", color: "#475569", display: "block", marginBottom: "4px" }}>
+                        Start Time (AM / PM)
+                      </span>
+                      <select
+                        id="empStartTimeSelect"
+                        value={empStartTime}
+                        onChange={(e) => {
+                          const newStart = e.target.value;
+                          setEmpStartTime(newStart);
+                          if (newStart && empEndTime) {
+                            setEmpHours(`${newStart} – ${empEndTime}`);
+                          } else if (newStart) {
+                            setEmpHours(`From ${newStart}`);
+                          }
+                        }}
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1.5px solid #cbd5e1", fontSize: "14px", background: "#ffffff" }}
+                      >
+                        <option value="">Choose start time</option>
+                        {HOURS_24_OPTIONS.map((t) => (
+                          <option key={`start-${t}`} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: "12px", fontWeight: "700", color: "#475569", display: "block", marginBottom: "4px" }}>
+                        End Time (AM / PM)
+                      </span>
+                      <select
+                        id="empEndTimeSelect"
+                        value={empEndTime}
+                        onChange={(e) => {
+                          const newEnd = e.target.value;
+                          setEmpEndTime(newEnd);
+                          if (empStartTime && newEnd) {
+                            setEmpHours(`${empStartTime} – ${newEnd}`);
+                          } else if (newEnd) {
+                            setEmpHours(`Until ${newEnd}`);
+                          }
+                        }}
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1.5px solid #cbd5e1", fontSize: "14px", background: "#ffffff" }}
+                      >
+                        <option value="">Choose end time</option>
+                        {HOURS_24_OPTIONS.map((t) => (
+                          <option key={`end-${t}`} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: "10px" }}>
+                    <DropdownWithCustom
+                      id="empHoursPreset"
+                      value={empHours}
+                      onChange={(val) => {
+                        setEmpHours(val);
+                        if (val.includes("–")) {
+                          const parts = val.split("–").map(x => x.trim());
+                          if (parts[0]) setEmpStartTime(parts[0]);
+                          if (parts[1]) setEmpEndTime(parts[1]);
+                        }
+                      }}
+                      options={[
+                        "9:00 AM – 5:00 PM (Standard Day)",
+                        "8:30 AM – 4:30 PM",
+                        "8:00 AM – 4:00 PM (Early Shift)",
+                        "10:00 AM – 6:00 PM",
+                        "9:00 AM – 1:00 PM (Morning Part-Time)",
+                        "9:00 AM – 2:30 PM (School / Mother's Hours)",
+                        "1:00 PM – 5:00 PM (Afternoon Part-Time)",
+                        "7:00 AM – 3:30 PM (Trades / Field Work)",
+                        "6:00 PM – 10:00 PM (Evening Shift)",
+                        "Flexible / Open Hours",
+                      ]}
+                      allowEmpty
+                      emptyLabel="Or select standard shift preset..."
+                      customPlaceholder="Or type custom work hours..."
+                    />
+                  </div>
                 </div>
 
                 <div className="field">

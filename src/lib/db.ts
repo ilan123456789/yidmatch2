@@ -42,6 +42,28 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   management: ["manager", "management", "director", "supervisor", "lead", "executive", "vp", "head", "chief", "operations"],
 };
 
+// Similar/Related Category Clusters - when a job is posted in a similar field, subscribers also receive alerts
+const RELATED_CATEGORIES: Record<string, string[]> = {
+  administration: ["accounting", "customer service", "management", "sales", "office", "general"],
+  accounting: ["administration", "finance", "management", "office", "general"],
+  "customer service": ["administration", "sales", "dispatch", "office", "general"],
+  sales: ["customer service", "marketing", "administration", "general"],
+  management: ["administration", "operations", "accounting", "general"],
+  hvac: ["plumbing", "electrical", "construction", "general"],
+  plumbing: ["hvac", "construction", "general"],
+  electrical: ["hvac", "construction", "it", "general"],
+  construction: ["plumbing", "electrical", "hvac", "handyman", "general"],
+  driving: ["warehouse", "delivery", "logistics", "general"],
+  warehouse: ["driving", "logistics", "operations", "general"],
+  it: ["electrical", "design", "general"],
+  design: ["marketing", "it", "general"],
+  marketing: ["sales", "design", "general"],
+  retail: ["customer service", "food service", "general"],
+  "food service": ["retail", "general"],
+  healthcare: ["general"],
+  education: ["general"],
+};
+
 function getDataPaths() {
   try {
     const cwd = typeof process !== "undefined" && typeof process.cwd === "function" ? process.cwd() : ".";
@@ -455,32 +477,85 @@ function matchesCategoryInterest(subscriberCategories: string[], jobText: string
     return true;
   }
 
+  const normalizedJobCategory = (jobCategory || "").toLowerCase().trim();
+  const normalizedJobText = (jobText || "").toLowerCase().trim();
+
+  // If the job category is general or other, match everyone
+  if (
+    !normalizedJobCategory ||
+    normalizedJobCategory === "general" ||
+    normalizedJobCategory === "other" ||
+    normalizedJobCategory === "flexible"
+  ) {
+    return true;
+  }
+
+  // Find all category groups that this job belongs to (including via synonyms)
+  const jobMatchedGroups = new Set<string>();
+  for (const [groupKey, synonyms] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (
+      normalizedJobCategory.includes(groupKey) ||
+      groupKey.includes(normalizedJobCategory) ||
+      synonyms.some((s) => normalizedJobCategory.includes(s) || normalizedJobText.includes(s))
+    ) {
+      jobMatchedGroups.add(groupKey);
+    }
+  }
+
   return subscriberCategories.some((rawCat) => {
     const cat = rawCat.toLowerCase().trim();
     if (!cat || cat === "all" || cat === "all categories" || cat === "any" || cat === "other" || cat === "general") {
       return true;
     }
 
-    if (jobCategory.includes(cat) || jobText.includes(cat)) {
+    // 1. Direct or reverse substring match
+    if (
+      normalizedJobCategory.includes(cat) ||
+      cat.includes(normalizedJobCategory) ||
+      normalizedJobText.includes(cat)
+    ) {
       return true;
     }
 
-    // Check individual words (3+ chars)
-    const words = cat.split(/[\s/&,-]+/).filter((w) => w.length >= 3);
-    if (words.some((w) => jobCategory.includes(w) || jobText.includes(w))) {
+    // 2. Word token match (skip generic stop words)
+    const stopWords = new Set(["work", "job", "jobs", "like", "want", "looking", "the", "and", "for", "with", "any"]);
+    const words = cat.split(/[\s/&,-]+/).filter((w) => w.length >= 3 && !stopWords.has(w));
+    if (words.some((w) => normalizedJobCategory.includes(w) || normalizedJobText.includes(w))) {
       return true;
     }
 
-    // Check synonym groups
+    // 3. Synonym & Group matching for subscriber
+    const subscriberGroups = new Set<string>();
     for (const [groupKey, synonyms] of Object.entries(CATEGORY_KEYWORDS)) {
-      const subscriberMatchesGroup =
-        cat.includes(groupKey) || groupKey.includes(cat) || synonyms.some((s) => cat.includes(s));
-      if (subscriberMatchesGroup) {
-        const jobMatchesGroup =
-          jobCategory.includes(groupKey) ||
-          jobText.includes(groupKey) ||
-          synonyms.some((s) => jobCategory.includes(s) || jobText.includes(s));
-        if (jobMatchesGroup) {
+      if (
+        cat.includes(groupKey) ||
+        groupKey.includes(cat) ||
+        synonyms.some((s) => cat.includes(s))
+      ) {
+        subscriberGroups.add(groupKey);
+      }
+    }
+
+    // If subscriber and job share ANY category group
+    for (const group of subscriberGroups) {
+      if (jobMatchedGroups.has(group)) {
+        return true;
+      }
+      // 4. SIMILAR CATEGORIES MATCH (Cross-category similarity)
+      // When subscriber likes group A (e.g. administration), also send alerts for related categories (e.g. accounting, customer service)
+      const related = RELATED_CATEGORIES[group] || [];
+      for (const rel of related) {
+        if (jobMatchedGroups.has(rel) || normalizedJobCategory.includes(rel) || normalizedJobText.includes(rel)) {
+          return true;
+        }
+      }
+    }
+
+    // If job matched any group that is related to subscriber's group
+    for (const jobGroup of jobMatchedGroups) {
+      const relatedToJob = RELATED_CATEGORIES[jobGroup] || [];
+      for (const rel of relatedToJob) {
+        if (subscriberGroups.has(rel) || cat.includes(rel)) {
           return true;
         }
       }

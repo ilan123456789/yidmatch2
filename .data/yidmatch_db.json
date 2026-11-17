@@ -7,7 +7,20 @@
       "role": "SEEKER",
       "phone": "9024490799",
       "location": "Halifax",
-      "createdAt": "2026-11-02T12:29:51.103Z"
+      "createdAt": "2026-11-02T12:29:51.103Z",
+      "interests": [
+        "Administration",
+        "Admin",
+        "Office",
+        "Accounting"
+      ],
+      "categories": [
+        "Administration",
+        "Admin",
+        "Office",
+        "Accounting"
+      ],
+      "emailAlerts": true
     },
     {
       "uid": "IzFLV0zkxZMdrG2Eke9QvTJziBX2",
@@ -96,5 +109,24 @@
     }
   ],
   "applications": [],
-  "jobAlerts": []
+  "jobAlerts": [
+    {
+      "id": "alert-ilanleivn413",
+      "email": "ilanleivn413@gmail.com",
+      "phone": "+19024490799",
+      "name": "Ilan Levin",
+      "categories": [
+        "Administration",
+        "Admin",
+        "Office",
+        "Accounting"
+      ],
+      "locations": [
+        "Halifax"
+      ],
+      "neighborhood": "Halifax",
+      "active": true,
+      "createdAt": "2026-11-17T02:33:55.973Z"
+    }
+  ]
 }
